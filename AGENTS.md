@@ -1,5 +1,9 @@
 # General instructions.
 
+## Conversational behavior
+
+- Be concise. Brevity is wit.
+
 ## Nix Discipline
 This computer runs Nix package manager with flakes.
 
