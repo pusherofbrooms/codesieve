@@ -41,19 +41,19 @@ GRAFANA_ROOT="$grafana_root" REPO_ROOT="$repo_root" nix develop --command bash -
   echo "== Symbol search: Go auth-related functions"
   "$BIN" search symbol Login --lang=go --limit=10 --json \
     | tee .codesieve-grafana-search-login-go.json \
-    | jq -r ".data.results[] | \"\(.kind) \(.name) \(.file_path):\(.line) score=\(.score)\"" || true
+    | jq -r ".data.results[]? | \"\(.kind) \(.name) \(.file_path):\(.line) score=\(.score)\"" || true
 
   echo
   echo "== Symbol search: TypeScript dashboard symbols"
   "$BIN" search symbol Dashboard --lang=typescript --limit=10 --path-substr=public/app/features/dashboard --json \
     | tee .codesieve-grafana-search-dashboard-ts.json \
-    | jq -r ".data.results[] | \"\(.kind) \(.name) \(.file_path):\(.line) score=\(.score)\"" || true
+    | jq -r ".data.results[]? | \"\(.kind) \(.name) \(.file_path):\(.line) score=\(.score)\"" || true
 
   echo
   echo "== Text search: AUTH_HEADER-like usages"
   "$BIN" search text AUTH_HEADER --limit=10 --json \
     | tee .codesieve-grafana-search-auth-header.json \
-    | jq -r ".data.results[] | \"\(.file_path):\(.line) \(.snippet)\"" || true
+    | jq -r ".data.results[]? | \"\(.file_path):\(.line) \(.snippet)\"" || true
 
   echo
   echo "Grafana smoke test complete. Artifacts in $GRAFANA_ROOT:"
