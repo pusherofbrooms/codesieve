@@ -31,7 +31,8 @@ func (u *User) Login(name string) bool { return true }
 
 func TestParsePythonSymbols(t *testing.T) {
 	src := []byte(`class Auth:
-    def login(self, user):
+    @decorator
+    async def login(self, user):
         return True
 
 def helper(name):
@@ -49,5 +50,46 @@ def helper(name):
 	}
 	if syms[1].QualifiedName != "Auth.login" || syms[1].Kind != "method" {
 		t.Fatalf("unexpected symbol: %+v", syms[1])
+	}
+}
+
+func TestParseTypeScriptSymbols(t *testing.T) {
+	src := []byte(`export interface User {
+  name: string
+}
+
+export class Client {
+  login(token: string) {
+    return token
+  }
+}
+
+export const fetchUser = (id: string) => id
+`)
+	syms, lang, err := ParseSymbols("client.ts", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "typescript" {
+		t.Fatalf("lang = %q", lang)
+	}
+	if len(syms) < 4 {
+		t.Fatalf("expected at least 4 symbols, got %d", len(syms))
+	}
+	foundMethod := false
+	foundArrow := false
+	foundInterface := false
+	for _, sym := range syms {
+		switch {
+		case sym.QualifiedName == "Client.login" && sym.Kind == "method":
+			foundMethod = true
+		case sym.Name == "fetchUser" && sym.Kind == "function":
+			foundArrow = true
+		case sym.Name == "User" && sym.Kind == "interface":
+			foundInterface = true
+		}
+	}
+	if !foundMethod || !foundArrow || !foundInterface {
+		t.Fatalf("missing expected symbols: %+v", syms)
 	}
 }

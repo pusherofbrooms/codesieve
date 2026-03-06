@@ -15,7 +15,7 @@
           pname = "codesieve";
           inherit version;
           src = ./.;
-          vendorHash = "sha256-fBD1uP9Wm1YjfhvWTc4iV6RXwq2INgssQIezEsLTBo4=";
+          vendorHash = "sha256-MR943XkJosza5+BSSA6cwqf/25zxPLiG84ARz0xkSyg=";
           subPackages = [ "cmd/codesieve" ];
 
           ldflags = [ "-s" "-w" "-X main.version=${version}" ];
@@ -42,22 +42,20 @@
             bats
             jq
             sqlite
+            clang
           ];
         };
 
         checks = {
           build = codesieve;
           tests = pkgs.runCommand "codesieve-tests" {
-            nativeBuildInputs = [ pkgs.go pkgs.bats pkgs.jq ];
+            nativeBuildInputs = [ pkgs.bats pkgs.jq ];
           } ''
             cp -R ${self} source
             chmod -R +w source
             cd source
             export HOME=$TMPDIR
-            export GOCACHE=$TMPDIR/go-cache
-            export GOPATH=$TMPDIR/go
             export CODESIEVE_BIN=${codesieve}/bin/codesieve
-            go test ./...
             bats tests/bats
             touch $out
           '';
