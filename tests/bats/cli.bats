@@ -79,3 +79,34 @@ setup() {
   echo "$output" | jq -e '.data.start_line == 7 and .data.end_line == 11' >/dev/null
   echo "$output" | jq -e '.data.content | contains("AUTH_HEADER")' >/dev/null
 }
+
+@test "reindex skips unchanged files" {
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.files_indexed == 3 and .data.files_updated == 3 and .data.files_unchanged == 0' >/dev/null
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.files_indexed == 0 and .data.files_updated == 0 and .data.files_unchanged == 3 and .data.files_deleted == 0' >/dev/null
+}
+
+@test "reindex removes deleted files from the index" {
+  worktree="$BATS_TEST_TMPDIR/worktree"
+  cp -R "$FIXTURE" "$worktree"
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json
+  [ "$status" -eq 0 ]
+
+  rm -f "$worktree/src/helpers.py"
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.files_deleted == 1' >/dev/null
+
+  pushd "$worktree" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol auth_helper --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.results | length == 0' >/dev/null
+}

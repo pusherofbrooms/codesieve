@@ -8,7 +8,7 @@
 - [x] Add basic parsers for Go, Python, and TS/JS
 - [ ] Improve `.gitignore` handling edge cases and diagnostics coverage
 - [ ] Add richer ranking and search filters
-- [ ] Add incremental reindex cleanup and smarter stale-file handling
+- [x] Add incremental reindex cleanup and smarter stale-file handling
 - [x] Add Bats CLI contract tests and fixture repositories
 - [ ] Add integration tests for SQLite indexing/query behavior
 - [ ] Add thin `pi` integration wrapper

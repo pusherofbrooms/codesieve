@@ -262,7 +262,7 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 
 	switch v := data.(type) {
 	case app.IndexResult:
-		fmt.Printf("Indexed %d files, %d symbols in %dms\n", v.FilesIndexed, v.SymbolsExtracted, time.Since(start).Milliseconds())
+		fmt.Printf("Indexed %d files (%d updated, %d unchanged, %d deleted), %d symbols in %dms\n", v.FilesIndexed, v.FilesUpdated, v.FilesUnchanged, v.FilesDeleted, v.SymbolsExtracted, time.Since(start).Milliseconds())
 		for _, d := range v.Warnings {
 			fmt.Printf("- %s: %s\n", d.Code, d.Path)
 		}

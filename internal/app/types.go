@@ -31,6 +31,9 @@ type IndexOptions struct {
 type IndexResult struct {
 	RepoPath         string       `json:"repo_path"`
 	FilesIndexed     int          `json:"files_indexed"`
+	FilesUpdated     int          `json:"files_updated"`
+	FilesUnchanged   int          `json:"files_unchanged"`
+	FilesDeleted     int          `json:"files_deleted"`
 	SymbolsExtracted int          `json:"symbols_extracted"`
 	FilesSkipped     []Diagnostic `json:"files_skipped"`
 	Warnings         []Diagnostic `json:"warnings"`

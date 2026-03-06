@@ -42,10 +42,15 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 	if err := s.store.clearDiagnostics(ctx, repoID); err != nil {
 		return IndexResult{}, err
 	}
+	existing, err := s.store.listIndexedFiles(ctx, repoID)
+	if err != nil {
+		return IndexResult{}, err
+	}
 
 	ig, _ := loadGitignore(repoPath, opt.NoGitignore)
 	res := IndexResult{RepoPath: repoPath}
 	count := 0
+	seen := map[string]struct{}{}
 	err = filepath.WalkDir(repoPath, func(fullPath string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -91,17 +96,31 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			_ = s.store.addDiagnostic(ctx, repoID, d)
 			return nil
 		}
+		seen[rel] = struct{}{}
+		if !opt.Force {
+			if prev, ok := existing[rel]; ok && prev.SizeBytes == info.Size() && prev.ModTimeNS == info.ModTime().UnixNano() && prev.ParseStatus == "ok" {
+				res.FilesUnchanged++
+				return nil
+			}
+		}
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
 			return err
 		}
 		if isBinary(content) {
+			delete(seen, rel)
 			d := Diagnostic{Code: "SKIPPED_BINARY", Path: rel}
 			res.FilesSkipped = append(res.FilesSkipped, d)
 			_ = s.store.addDiagnostic(ctx, repoID, d)
 			return nil
 		}
 		hash := sha256hex(content)
+		if !opt.Force {
+			if prev, ok := existing[rel]; ok && prev.Hash == hash && prev.ParseStatus == "ok" {
+				res.FilesUnchanged++
+				return nil
+			}
+		}
 		parsed, detectedLang, err := ParseSymbols(fullPath, content)
 		parseStatus := "ok"
 		if err != nil {
@@ -115,21 +134,29 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		for i := range parsed {
 			parsed[i].Language = detectedLang
 			parsed[i].FilePath = rel
-			parsed[i].ID = symbolID(rel, parsed[i])
+			parsed[i].ID = symbolID(repoPath, rel, parsed[i])
 			if parsed[i].QualifiedName == "" {
 				parsed[i].QualifiedName = parsed[i].Name
 			}
 		}
-		if err := s.store.replaceFileSymbols(ctx, repoID, rel, detectedLang, hash, info.Size(), parseStatus, parsed); err != nil {
+		if err := s.store.replaceFileSymbols(ctx, repoID, rel, detectedLang, hash, info.Size(), info.ModTime().UnixNano(), parseStatus, parsed); err != nil {
 			return err
 		}
 		count++
 		res.FilesIndexed++
+		res.FilesUpdated++
 		res.SymbolsExtracted += len(parsed)
 		return nil
 	})
 	if err != nil && err != io.EOF {
 		return IndexResult{}, err
+	}
+	if err == nil || err == io.EOF {
+		deleted, derr := s.store.deleteMissingFiles(ctx, repoID, seen)
+		if derr != nil {
+			return IndexResult{}, derr
+		}
+		res.FilesDeleted = deleted
 	}
 	res.DurationMS = time.Since(start).Milliseconds()
 	return res, nil
@@ -213,8 +240,12 @@ func (s *Service) Outline(ctx context.Context, path string) (OutlineResult, erro
 		return OutlineResult{}, err
 	}
 	result := OutlineResult{FilePath: relPath, Language: lang}
+	repoPath, err := currentRepoRoot()
+	if err != nil {
+		return OutlineResult{}, err
+	}
 	for _, sym := range parsed {
-		sym.ID = symbolID(relPath, sym)
+		sym.ID = symbolID(repoPath, relPath, sym)
 		result.Symbols = append(result.Symbols, OutlineSymbol{ID: sym.ID, Name: sym.Name, Kind: sym.Kind, ParentID: sym.ParentID, StartLine: sym.StartLine, EndLine: sym.EndLine, Signature: sym.Signature, Language: lang})
 	}
 	_ = ctx
@@ -311,10 +342,11 @@ func sha256hex(content []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func symbolID(relPath string, sym Symbol) string {
+func symbolID(repoPath, relPath string, sym Symbol) string {
 	name := sym.QualifiedName
 	if name == "" {
 		name = sym.Name
 	}
-	return filepath.ToSlash(relPath) + "::" + name + "#" + sym.Kind + ":" + strconv.Itoa(sym.StartLine)
+	repoKey := sha256hex([]byte(repoPath))[:12]
+	return repoKey + ":" + filepath.ToSlash(relPath) + "::" + name + "#" + sym.Kind + ":" + strconv.Itoa(sym.StartLine)
 }

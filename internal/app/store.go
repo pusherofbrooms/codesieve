@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS files (
   language TEXT,
   hash TEXT NOT NULL,
   size_bytes INTEGER NOT NULL,
+  mod_time_ns INTEGER NOT NULL DEFAULT 0,
   indexed_at TEXT NOT NULL,
   parse_status TEXT NOT NULL,
   UNIQUE(repo_id, path)
@@ -89,8 +90,14 @@ CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
 CREATE INDEX IF NOT EXISTS idx_symbols_qname ON symbols(qualified_name);
 CREATE INDEX IF NOT EXISTS idx_files_repo_path ON files(repo_id, path);
 `
-	_, err := s.db.Exec(schema)
-	return err
+	if _, err := s.db.Exec(schema); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`ALTER TABLE files ADD COLUMN mod_time_ns INTEGER NOT NULL DEFAULT 0`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
+	return nil
 }
 
 func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {
@@ -103,15 +110,15 @@ func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {
 	return id, err
 }
 
-func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, parseStatus string, symbols []Symbol) error {
+func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, modTimeNS int64, parseStatus string, symbols []Symbol) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	_, err = tx.ExecContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, indexed_at, parse_status) VALUES(?, ?, ?, ?, ?, datetime('now'), ?)
-		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, indexed_at=datetime('now'), parse_status=excluded.parse_status`, repoID, relPath, language, hash, size, parseStatus)
+	_, err = tx.ExecContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, mod_time_ns, indexed_at, parse_status) VALUES(?, ?, ?, ?, ?, ?, datetime('now'), ?)
+		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status`, repoID, relPath, language, hash, size, modTimeNS, parseStatus)
 	if err != nil {
 		return err
 	}
@@ -142,6 +149,15 @@ func (s *Store) addDiagnostic(ctx context.Context, repoID int64, d Diagnostic) e
 	return err
 }
 
+type indexedFile struct {
+	Path        string
+	Hash        string
+	SizeBytes   int64
+	ModTimeNS   int64
+	Language    string
+	ParseStatus string
+}
+
 type storedSymbol struct {
 	ID            string
 	Name          string
@@ -153,6 +169,63 @@ type storedSymbol struct {
 	EndLine       int
 	Language      string
 	Score         float64
+}
+
+func (s *Store) listIndexedFiles(ctx context.Context, repoID int64) (map[string]indexedFile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT path, hash, size_bytes, mod_time_ns, COALESCE(language,''), parse_status FROM files WHERE repo_id = ?`, repoID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]indexedFile{}
+	for rows.Next() {
+		var item indexedFile
+		if err := rows.Scan(&item.Path, &item.Hash, &item.SizeBytes, &item.ModTimeNS, &item.Language, &item.ParseStatus); err != nil {
+			return nil, err
+		}
+		out[item.Path] = item
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) deleteMissingFiles(ctx context.Context, repoID int64, seen map[string]struct{}) (int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, path FROM files WHERE repo_id = ?`, repoID)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	deleted := 0
+	for rows.Next() {
+		var fileID int64
+		var path string
+		if err := rows.Scan(&fileID, &path); err != nil {
+			return 0, err
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM symbols WHERE file_id = ?`, fileID); err != nil {
+			return 0, err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM files WHERE id = ?`, fileID); err != nil {
+			return 0, err
+		}
+		deleted++
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return deleted, nil
 }
 
 func (s *Store) searchSymbols(ctx context.Context, repoPath string, opt SearchSymbolOptions) ([]storedSymbol, error) {
