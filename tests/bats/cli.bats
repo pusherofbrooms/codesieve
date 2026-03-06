@@ -110,3 +110,24 @@ setup() {
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.data.results | length == 0' >/dev/null
 }
+
+@test "index handles duplicate one-line javascript methods" {
+  worktree="$BATS_TEST_TMPDIR/dup-js"
+  mkdir -p "$worktree"
+  cat > "$worktree/dup.js" <<'EOF'
+class A { foo(){} foo(){} }
+EOF
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.ok == true' >/dev/null
+  echo "$output" | jq -e '.data.files_indexed == 1' >/dev/null
+  echo "$output" | jq -e '.data.symbols_extracted == 3' >/dev/null
+
+  pushd "$worktree" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol foo --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.data.results[] | select(.qualified_name == "A.foo")] | length == 2' >/dev/null
+}

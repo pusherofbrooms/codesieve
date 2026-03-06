@@ -357,5 +357,5 @@ func symbolID(repoPath, relPath string, sym Symbol) string {
 		name = sym.Name
 	}
 	repoKey := sha256hex([]byte(repoPath))[:12]
-	return repoKey + ":" + filepath.ToSlash(relPath) + "::" + name + "#" + sym.Kind + ":" + strconv.Itoa(sym.StartLine)
+	return repoKey + ":" + filepath.ToSlash(relPath) + "::" + name + "#" + sym.Kind + ":" + strconv.Itoa(sym.StartByte) + "-" + strconv.Itoa(sym.EndByte)
 }
