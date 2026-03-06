@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: $0 /path/to/grafana-repo" >&2
+  exit 1
+fi
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+grafana_root="$(cd "$1" && pwd)"
+
+echo "codesieve repo: $repo_root"
+echo "grafana repo:  $grafana_root"
+
+GRAFANA_ROOT="$grafana_root" REPO_ROOT="$repo_root" nix develop --command bash -lc '
+  set -euo pipefail
+
+  echo "Using REPO_ROOT=$REPO_ROOT"
+  echo "Using GRAFANA_ROOT=$GRAFANA_ROOT"
+
+  if [ -n "${CODESIEVE_BIN:-}" ]; then
+    BIN="$CODESIEVE_BIN"
+    echo "Using prebuilt codesieve binary: $BIN"
+  else
+    BIN="$REPO_ROOT/.smoke-codesieve-bin"
+    echo "Building codesieve binary at: $BIN"
+    (cd "$REPO_ROOT" && go build -o "$BIN" ./cmd/codesieve)
+  fi
+
+  cd "$GRAFANA_ROOT"
+  export CODESIEVE_DB_PATH="$PWD/.codesieve-grafana.db"
+
+  echo
+  echo "== Indexing Grafana (this may take a while)..."
+  "$BIN" index . --json \
+    | tee .codesieve-grafana-index.json \
+    | jq -r ".data | \"files_indexed=\(.files_indexed) files_updated=\(.files_updated) symbols_extracted=\(.symbols_extracted) duration_ms=\(.duration_ms)\""
+
+  echo
+  echo "== Symbol search: Go auth-related functions"
+  "$BIN" search symbol Login --lang=go --limit=10 --json \
+    | tee .codesieve-grafana-search-login-go.json \
+    | jq -r ".data.results[] | \"\(.kind) \(.name) \(.file_path):\(.line) score=\(.score)\"" || true
+
+  echo
+  echo "== Symbol search: TypeScript dashboard symbols"
+  "$BIN" search symbol Dashboard --lang=typescript --limit=10 --path-substr=public/app/features/dashboard --json \
+    | tee .codesieve-grafana-search-dashboard-ts.json \
+    | jq -r ".data.results[] | \"\(.kind) \(.name) \(.file_path):\(.line) score=\(.score)\"" || true
+
+  echo
+  echo "== Text search: AUTH_HEADER-like usages"
+  "$BIN" search text AUTH_HEADER --limit=10 --json \
+    | tee .codesieve-grafana-search-auth-header.json \
+    | jq -r ".data.results[] | \"\(.file_path):\(.line) \(.snippet)\"" || true
+
+  echo
+  echo "Grafana smoke test complete. Artifacts in $GRAFANA_ROOT:"
+  ls -1 .codesieve-grafana-*.json || true
+'
