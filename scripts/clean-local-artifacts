@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+cd "$repo_root"
+
+targets=(
+  .bats-codesieve-bin
+  .codesieve-test.db
+  vendor
+)
+
+echo "Removing local artifacts from: $repo_root"
+printf ' - %s
+' "${targets[@]}"
+
+rm -f .bats-codesieve-bin .codesieve-test.db
+rm -rf vendor

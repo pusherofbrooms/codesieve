@@ -18,3 +18,19 @@ Sadly, you don't have access to a PTY, so no interactive nix shell.
 - No imperative package management
 
 The system must remain reproducible and declarative.
+
+## Version control
+
+- After tests pass, commit.
+- After documentation changes, commit.
+
+## Repository cleanup helpers
+
+If you need to remove rebuildable local directories or vendored grammar trees, prefer the repo scripts so the operation is easy to audit:
+
+- `scripts/clean-local-artifacts`
+  - removes `.bats-codesieve-bin`, `.codesieve-test.db`, and `vendor/`
+- `scripts/reset-vendor`
+  - removes `vendor/`
+- `scripts/remove-vendored-grammar <python|javascript|typescript>`
+  - removes one vendored grammar tree under `third_party/`
