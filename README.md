@@ -27,6 +27,29 @@ nix develop --command bats tests/bats
 nix flake check
 ```
 
+## Build without Nix
+
+If you have a recent Go toolchain and a C compiler installed (for Tree-sitter's C code), you can build directly with Go:
+
+```bash
+# From the repo root
+go build -o codesieve ./cmd/codesieve
+
+# Or install into your GOPATH/bin (if configured)
+go install ./cmd/codesieve
+```
+
+Then run:
+
+```bash
+./codesieve help
+```
+
+For development tooling (tests, Bats, jq, etc.), you can either:
+
+- use Nix as described above, or
+- install those tools via your OS package manager.
+
 ## Usage
 
 For a brief overview of commands and flags, run:
