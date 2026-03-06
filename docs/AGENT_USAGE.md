@@ -25,6 +25,14 @@ codesieve search symbol authenticate --json
 
 Avoid reading full files before checking whether the needed symbol already exists.
 
+When you get too many matches, you can narrow symbol search with:
+
+- `--lang=<lang>` (language filter)
+- `--kind=<kind>` (e.g. `function`, `method`, `class`)
+- `--path-substr=<path>` (only matches in paths containing this substring)
+- `--limit=<n>` (maximum results to return)
+- `--case-sensitive` (require exact case match on the symbol name)
+
 ### Prefer outline before large reads
 
 If multiple candidate symbols are in one file, inspect the outline:
@@ -56,6 +64,13 @@ Example:
 ```bash
 codesieve search text "AUTH_HEADER" --json
 ```
+
+You can also narrow text search with:
+
+- `--lang=<lang>` (language filter)
+- `--path-substr=<path>` (only matches in paths containing this substring)
+- `--limit=<n>` (maximum results to return)
+- `--case-sensitive` (treat the query as case-sensitive)
 
 ### Read file slices, not whole files
 
