@@ -1,0 +1,9 @@
+.direnv/
+result
+bin/
+.coverage
+*.db
+*.sqlite
+.codesieve*.db
+.bats-codesieve-bin
+vendor/

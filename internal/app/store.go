@@ -1,0 +1,291 @@
+package app
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	_ "modernc.org/sqlite"
+)
+
+type Store struct {
+	db *sql.DB
+}
+
+func DefaultDBPath() (string, error) {
+	if v := os.Getenv("CODESIEVE_DB_PATH"); v != "" {
+		return v, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".codesieve", "index.db"), nil
+}
+
+func OpenStore(path string) (*Store, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return nil, err
+	}
+	s := &Store{db: db}
+	if err := s.migrate(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return s, nil
+}
+
+func (s *Store) Close() error { return s.db.Close() }
+
+func (s *Store) migrate() error {
+	schema := `
+CREATE TABLE IF NOT EXISTS repos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  path TEXT NOT NULL UNIQUE,
+  indexed_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS files (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_id INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  language TEXT,
+  hash TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  indexed_at TEXT NOT NULL,
+  parse_status TEXT NOT NULL,
+  UNIQUE(repo_id, path)
+);
+CREATE TABLE IF NOT EXISTS symbols (
+  id TEXT PRIMARY KEY,
+  repo_id INTEGER NOT NULL,
+  file_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  qualified_name TEXT,
+  kind TEXT NOT NULL,
+  parent_symbol_id TEXT,
+  signature TEXT,
+  documentation TEXT,
+  start_line INTEGER NOT NULL,
+  end_line INTEGER NOT NULL,
+  start_byte INTEGER NOT NULL,
+  end_byte INTEGER NOT NULL,
+  language TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS diagnostics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_id INTEGER NOT NULL,
+  path TEXT,
+  code TEXT NOT NULL,
+  message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
+CREATE INDEX IF NOT EXISTS idx_symbols_qname ON symbols(qualified_name);
+CREATE INDEX IF NOT EXISTS idx_files_repo_path ON files(repo_id, path);
+`
+	_, err := s.db.Exec(schema)
+	return err
+}
+
+func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO repos(path, indexed_at) VALUES(?, datetime('now')) ON CONFLICT(path) DO UPDATE SET indexed_at=datetime('now')`, path)
+	if err != nil {
+		return 0, err
+	}
+	var id int64
+	err = s.db.QueryRowContext(ctx, `SELECT id FROM repos WHERE path = ?`, path).Scan(&id)
+	return id, err
+}
+
+func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, parseStatus string, symbols []Symbol) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, indexed_at, parse_status) VALUES(?, ?, ?, ?, ?, datetime('now'), ?)
+		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, indexed_at=datetime('now'), parse_status=excluded.parse_status`, repoID, relPath, language, hash, size, parseStatus)
+	if err != nil {
+		return err
+	}
+	var fileID int64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM files WHERE repo_id = ? AND path = ?`, repoID, relPath).Scan(&fileID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM symbols WHERE file_id = ?`, fileID); err != nil {
+		return err
+	}
+	for _, sym := range symbols {
+		_, err := tx.ExecContext(ctx, `INSERT INTO symbols(id, repo_id, file_id, name, qualified_name, kind, parent_symbol_id, signature, documentation, start_line, end_line, start_byte, end_byte, language)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, sym.ID, repoID, fileID, sym.Name, sym.QualifiedName, sym.Kind, nullable(sym.ParentID), nullable(sym.Signature), nullable(sym.Documentation), sym.StartLine, sym.EndLine, sym.StartByte, sym.EndByte, sym.Language)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) clearDiagnostics(ctx context.Context, repoID int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM diagnostics WHERE repo_id = ?`, repoID)
+	return err
+}
+
+func (s *Store) addDiagnostic(ctx context.Context, repoID int64, d Diagnostic) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO diagnostics(repo_id, path, code, message) VALUES(?, ?, ?, ?)`, repoID, nullable(d.Path), d.Code, nullable(d.Message))
+	return err
+}
+
+type storedSymbol struct {
+	ID            string
+	Name          string
+	QualifiedName string
+	Kind          string
+	Signature     string
+	FilePath      string
+	StartLine     int
+	EndLine       int
+	Language      string
+	Score         float64
+}
+
+func (s *Store) searchSymbols(ctx context.Context, repoPath string, opt SearchSymbolOptions) ([]storedSymbol, error) {
+	if opt.Limit <= 0 {
+		opt.Limit = 20
+	}
+	q := strings.ToLower(opt.Query)
+	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.name, COALESCE(s.qualified_name,''), s.kind, COALESCE(s.signature,''), f.path, s.start_line, s.end_line, s.language
+		FROM symbols s
+		JOIN repos r ON r.id = s.repo_id
+		JOIN files f ON f.id = s.file_id
+		WHERE r.path = ?
+		AND (lower(s.name) LIKE ? OR lower(s.qualified_name) LIKE ?)
+		AND (? = '' OR s.language = ?)
+		AND (? = '' OR s.kind = ?)
+		LIMIT ?`, repoPath, "%"+q+"%", "%"+q+"%", opt.Lang, opt.Lang, opt.Kind, opt.Kind, opt.Limit*5)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []storedSymbol
+	for rows.Next() {
+		var item storedSymbol
+		if err := rows.Scan(&item.ID, &item.Name, &item.QualifiedName, &item.Kind, &item.Signature, &item.FilePath, &item.StartLine, &item.EndLine, &item.Language); err != nil {
+			return nil, err
+		}
+		item.Score = rankSymbol(q, item)
+		out = append(out, item)
+	}
+	sortStoredSymbols(out)
+	if len(out) > opt.Limit {
+		out = out[:opt.Limit]
+	}
+	return out, rows.Err()
+}
+
+func sortStoredSymbols(items []storedSymbol) {
+	for i := 0; i < len(items); i++ {
+		for j := i + 1; j < len(items); j++ {
+			if items[j].Score > items[i].Score || (items[j].Score == items[i].Score && items[j].FilePath < items[i].FilePath) {
+				items[i], items[j] = items[j], items[i]
+			}
+		}
+	}
+}
+
+func rankSymbol(query string, item storedSymbol) float64 {
+	name := strings.ToLower(item.Name)
+	qname := strings.ToLower(item.QualifiedName)
+	score := 0.0
+	switch {
+	case name == query:
+		score += 100
+	case qname == query:
+		score += 95
+	case strings.HasPrefix(name, query):
+		score += 80
+	case strings.HasPrefix(qname, query):
+		score += 70
+	case strings.Contains(name, query):
+		score += 60
+	case strings.Contains(qname, query):
+		score += 50
+	}
+	score += 1.0 / float64(item.StartLine+1)
+	return score
+}
+
+func (s *Store) listFileSymbols(ctx context.Context, repoPath, relPath string) ([]storedSymbol, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.name, COALESCE(s.qualified_name,''), s.kind, COALESCE(s.signature,''), f.path, s.start_line, s.end_line, s.language
+		FROM symbols s
+		JOIN repos r ON r.id = s.repo_id
+		JOIN files f ON f.id = s.file_id
+		WHERE r.path = ? AND f.path = ?
+		ORDER BY s.start_line`, repoPath, relPath)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []storedSymbol
+	for rows.Next() {
+		var item storedSymbol
+		if err := rows.Scan(&item.ID, &item.Name, &item.QualifiedName, &item.Kind, &item.Signature, &item.FilePath, &item.StartLine, &item.EndLine, &item.Language); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+type symbolRecord struct {
+	storedSymbol
+	RepoPath string
+}
+
+func (s *Store) getSymbol(ctx context.Context, id string) (*symbolRecord, error) {
+	var rec symbolRecord
+	err := s.db.QueryRowContext(ctx, `SELECT s.id, s.name, COALESCE(s.qualified_name,''), s.kind, COALESCE(s.signature,''), f.path, s.start_line, s.end_line, s.language, r.path
+		FROM symbols s
+		JOIN files f ON f.id = s.file_id
+		JOIN repos r ON r.id = s.repo_id
+		WHERE s.id = ?`, id).Scan(&rec.ID, &rec.Name, &rec.QualifiedName, &rec.Kind, &rec.Signature, &rec.FilePath, &rec.StartLine, &rec.EndLine, &rec.Language, &rec.RepoPath)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound("SYMBOL_NOT_FOUND", "no symbol matched the provided id")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
+func nullable(v string) any {
+	if strings.TrimSpace(v) == "" {
+		return nil
+	}
+	return v
+}
+
+func repoAndRel(base, file string) (string, string, error) {
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return "", "", err
+	}
+	absFile, err := filepath.Abs(file)
+	if err != nil {
+		return "", "", err
+	}
+	rel, err := filepath.Rel(absBase, absFile)
+	if err != nil {
+		return "", "", err
+	}
+	if strings.HasPrefix(rel, "..") {
+		return "", "", fmt.Errorf("path is outside repository: %s", file)
+	}
+	return absBase, filepath.ToSlash(rel), nil
+}

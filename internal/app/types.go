@@ -1,0 +1,131 @@
+package app
+
+type CodedError struct {
+	Code    string
+	Message string
+}
+
+func (e *CodedError) Error() string { return e.Message }
+
+func ErrInvalidArgs(message string) error {
+	return &CodedError{Code: "INVALID_ARGS", Message: message}
+}
+
+func ErrNotFound(code, message string) error {
+	return &CodedError{Code: code, Message: message}
+}
+
+type Diagnostic struct {
+	Code    string `json:"code"`
+	Path    string `json:"path,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+type IndexOptions struct {
+	Force       bool
+	NoGitignore bool
+	MaxFiles    int
+	MaxSize     int64
+}
+
+type IndexResult struct {
+	RepoPath         string       `json:"repo_path"`
+	FilesIndexed     int          `json:"files_indexed"`
+	SymbolsExtracted int          `json:"symbols_extracted"`
+	FilesSkipped     []Diagnostic `json:"files_skipped"`
+	Warnings         []Diagnostic `json:"warnings"`
+	DurationMS       int64        `json:"duration_ms"`
+}
+
+type SearchSymbolOptions struct {
+	Query string
+	Limit int
+	Lang  string
+	Kind  string
+}
+
+type SymbolSearchItem struct {
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	QualifiedName string  `json:"qualified_name,omitempty"`
+	Kind          string  `json:"kind"`
+	FilePath      string  `json:"file_path"`
+	Line          int     `json:"line"`
+	Signature     string  `json:"signature,omitempty"`
+	Score         float64 `json:"score"`
+}
+
+type SymbolSearchResult struct {
+	Results []SymbolSearchItem `json:"results"`
+}
+
+type SearchTextOptions struct {
+	Query string
+	Limit int
+	Lang  string
+}
+
+type TextSearchItem struct {
+	FilePath string `json:"file_path"`
+	Line     int    `json:"line"`
+	Snippet  string `json:"snippet"`
+	StartCol int    `json:"start_col,omitempty"`
+	EndCol   int    `json:"end_col,omitempty"`
+}
+
+type TextSearchResult struct {
+	Results []TextSearchItem `json:"results"`
+}
+
+type OutlineSymbol struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+	ParentID  string `json:"parent_id,omitempty"`
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
+	Signature string `json:"signature,omitempty"`
+	Language  string `json:"language,omitempty"`
+}
+
+type OutlineResult struct {
+	FilePath string          `json:"file_path"`
+	Language string          `json:"language"`
+	Symbols  []OutlineSymbol `json:"symbols"`
+}
+
+type ShowSymbolResult struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Kind          string `json:"kind"`
+	FilePath      string `json:"file_path"`
+	Language      string `json:"language"`
+	QualifiedName string `json:"qualified_name,omitempty"`
+	Signature     string `json:"signature,omitempty"`
+	StartLine     int    `json:"start_line"`
+	EndLine       int    `json:"end_line"`
+	Content       string `json:"content"`
+}
+
+type ShowFileResult struct {
+	FilePath  string `json:"file_path"`
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
+	Content   string `json:"content"`
+}
+
+type Symbol struct {
+	ID            string
+	Name          string
+	QualifiedName string
+	Kind          string
+	ParentID      string
+	Signature     string
+	Documentation string
+	StartLine     int
+	EndLine       int
+	StartByte     int
+	EndByte       int
+	Language      string
+	FilePath      string
+}
