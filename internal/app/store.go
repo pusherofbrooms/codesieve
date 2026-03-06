@@ -232,7 +232,8 @@ func (s *Store) searchSymbols(ctx context.Context, repoPath string, opt SearchSy
 	if opt.Limit <= 0 {
 		opt.Limit = 20
 	}
-	q := strings.ToLower(opt.Query)
+	qFold := strings.ToLower(opt.Query)
+	pathLike := "%" + opt.PathSubstr + "%"
 	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.name, COALESCE(s.qualified_name,''), s.kind, COALESCE(s.signature,''), f.path, s.start_line, s.end_line, s.language
 		FROM symbols s
 		JOIN repos r ON r.id = s.repo_id
@@ -241,7 +242,8 @@ func (s *Store) searchSymbols(ctx context.Context, repoPath string, opt SearchSy
 		AND (lower(s.name) LIKE ? OR lower(s.qualified_name) LIKE ?)
 		AND (? = '' OR s.language = ?)
 		AND (? = '' OR s.kind = ?)
-		LIMIT ?`, repoPath, "%"+q+"%", "%"+q+"%", opt.Lang, opt.Lang, opt.Kind, opt.Kind, opt.Limit*5)
+		AND (? = '' OR f.path LIKE ?)
+		LIMIT ?`, repoPath, "%"+qFold+"%", "%"+qFold+"%", opt.Lang, opt.Lang, opt.Kind, opt.Kind, opt.PathSubstr, pathLike, opt.Limit*5)
 	if err != nil {
 		return nil, err
 	}
@@ -252,8 +254,10 @@ func (s *Store) searchSymbols(ctx context.Context, repoPath string, opt SearchSy
 		if err := rows.Scan(&item.ID, &item.Name, &item.QualifiedName, &item.Kind, &item.Signature, &item.FilePath, &item.StartLine, &item.EndLine, &item.Language); err != nil {
 			return nil, err
 		}
-		item.Score = rankSymbol(q, item)
-		out = append(out, item)
+		item.Score = rankSymbol(opt, item)
+		if item.Score > 0 {
+			out = append(out, item)
+		}
 	}
 	sortStoredSymbols(out)
 	if len(out) > opt.Limit {
@@ -272,24 +276,99 @@ func sortStoredSymbols(items []storedSymbol) {
 	}
 }
 
-func rankSymbol(query string, item storedSymbol) float64 {
-	name := strings.ToLower(item.Name)
-	qname := strings.ToLower(item.QualifiedName)
-	score := 0.0
-	switch {
-	case name == query:
-		score += 100
-	case qname == query:
-		score += 95
-	case strings.HasPrefix(name, query):
-		score += 80
-	case strings.HasPrefix(qname, query):
-		score += 70
-	case strings.Contains(name, query):
-		score += 60
-	case strings.Contains(qname, query):
-		score += 50
+func rankSymbol(opt SearchSymbolOptions, item storedSymbol) float64 {
+	q := opt.Query
+	if strings.TrimSpace(q) == "" {
+		return 0
 	}
+
+	name := item.Name
+	qname := item.QualifiedName
+	container := ""
+	if dot := strings.LastIndex(qname, "."); dot > 0 {
+		container = qname[:dot]
+	}
+
+	// Case handling
+	nameFold := strings.ToLower(name)
+	qnameFold := strings.ToLower(qname)
+	qFold := strings.ToLower(q)
+
+	matchScore := 0.0
+
+	// Helper for equality under case rules
+	eq := func(a, b string) bool {
+		if opt.CaseSensitive {
+			return a == b
+		}
+		return strings.EqualFold(a, b)
+	}
+
+	// Name / qualified name matching tiers
+	switch {
+	case eq(name, q):
+		matchScore = 100
+	case eq(qname, q):
+		matchScore = 95
+	case !opt.CaseSensitive && strings.HasPrefix(nameFold, qFold):
+		matchScore = 80
+	case !opt.CaseSensitive && strings.HasPrefix(qnameFold, qFold):
+		matchScore = 70
+	case opt.CaseSensitive && strings.HasPrefix(name, q):
+		matchScore = 80
+	case opt.CaseSensitive && strings.HasPrefix(qname, q):
+		matchScore = 70
+	case !opt.CaseSensitive && strings.Contains(nameFold, qFold):
+		matchScore = 60
+	case !opt.CaseSensitive && strings.Contains(qnameFold, qFold):
+		matchScore = 50
+	case opt.CaseSensitive && strings.Contains(name, q):
+		matchScore = 60
+	case opt.CaseSensitive && strings.Contains(qname, q):
+		matchScore = 50
+	}
+
+	if matchScore == 0 {
+		return 0
+	}
+
+	score := matchScore
+
+	// Kind weighting
+	switch strings.ToLower(item.Kind) {
+	case "function", "func", "method":
+		score += 15
+	case "class", "struct", "interface":
+		score += 10
+	case "enum", "type", "type_alias":
+		score += 5
+	}
+
+	// Container/context hints
+	if container != "" {
+		if eq(container, q) {
+			score += 10
+		} else if !opt.CaseSensitive && strings.HasPrefix(strings.ToLower(container), qFold) {
+			score += 5
+		} else if opt.CaseSensitive && strings.HasPrefix(container, q) {
+			score += 5
+		}
+	}
+
+	// Path heuristics
+	path := item.FilePath
+	pathFold := strings.ToLower(path)
+	if strings.HasPrefix(path, "vendor/") || strings.HasPrefix(path, "third_party/") {
+		score -= 15
+	}
+	if strings.HasSuffix(path, "_test.go") || strings.Contains(pathFold, "/test/") || strings.Contains(pathFold, "/tests/") {
+		score -= 10
+	}
+	if strings.HasPrefix(path, "src/") || strings.HasPrefix(path, "internal/") {
+		score += 5
+	}
+
+	// Slight preference for earlier definitions
 	score += 1.0 / float64(item.StartLine+1)
 	return score
 }

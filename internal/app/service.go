@@ -193,7 +193,8 @@ func (s *Service) SearchText(ctx context.Context, opt SearchTextOptions) (TextSe
 	if err != nil {
 		return TextSearchResult{}, err
 	}
-	query := strings.ToLower(opt.Query)
+	query := opt.Query
+	queryFold := strings.ToLower(opt.Query)
 	if opt.Limit <= 0 {
 		opt.Limit = 20
 	}
@@ -211,12 +212,20 @@ func (s *Service) SearchText(ctx context.Context, opt SearchTextOptions) (TextSe
 			return nil
 		}
 		rel, _ := filepath.Rel(repoPath, fullPath)
+		if opt.PathSubstr != "" && !strings.Contains(filepath.ToSlash(rel), opt.PathSubstr) {
+			return nil
+		}
 		scanner := bufio.NewScanner(strings.NewReader(string(content)))
 		lineNo := 0
 		for scanner.Scan() && len(results) < opt.Limit {
 			lineNo++
 			line := scanner.Text()
-			idx := strings.Index(strings.ToLower(line), query)
+			var idx int
+			if opt.CaseSensitive {
+				idx = strings.Index(line, query)
+			} else {
+				idx = strings.Index(strings.ToLower(line), queryFold)
+			}
 			if idx >= 0 {
 				results = append(results, TextSearchItem{FilePath: filepath.ToSlash(rel), Line: lineNo, Snippet: strings.TrimSpace(line), StartCol: idx + 1, EndCol: idx + len(opt.Query) + 1})
 			}

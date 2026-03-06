@@ -106,6 +106,8 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 	limit := 20
 	lang := ""
 	kind := ""
+	pathSubstr := ""
+	caseSensitive := false
 	query := args[1]
 	for _, arg := range args[2:] {
 		switch {
@@ -121,6 +123,10 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 			lang = strings.TrimPrefix(arg, "--lang=")
 		case strings.HasPrefix(arg, "--kind="):
 			kind = strings.TrimPrefix(arg, "--kind=")
+		case strings.HasPrefix(arg, "--path-substr="):
+			pathSubstr = strings.TrimPrefix(arg, "--path-substr=")
+		case arg == "--case-sensitive":
+			caseSensitive = true
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
 		}
@@ -128,13 +134,13 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 
 	switch args[0] {
 	case "symbol":
-		result, err := svc.SearchSymbols(ctx, app.SearchSymbolOptions{Query: query, Limit: limit, Lang: lang, Kind: kind})
+		result, err := svc.SearchSymbols(ctx, app.SearchSymbolOptions{Query: query, Limit: limit, Lang: lang, Kind: kind, PathSubstr: pathSubstr, CaseSensitive: caseSensitive})
 		if err != nil {
 			return printError(start, jsonMode, err)
 		}
 		return printSuccess(start, jsonMode, result)
 	case "text":
-		result, err := svc.SearchText(ctx, app.SearchTextOptions{Query: query, Limit: limit, Lang: lang})
+		result, err := svc.SearchText(ctx, app.SearchTextOptions{Query: query, Limit: limit, Lang: lang, PathSubstr: pathSubstr, CaseSensitive: caseSensitive})
 		if err != nil {
 			return printError(start, jsonMode, err)
 		}

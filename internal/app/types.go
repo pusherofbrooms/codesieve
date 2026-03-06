@@ -41,10 +41,12 @@ type IndexResult struct {
 }
 
 type SearchSymbolOptions struct {
-	Query string
-	Limit int
-	Lang  string
-	Kind  string
+	Query         string
+	Limit         int
+	Lang          string
+	Kind          string
+	PathSubstr    string
+	CaseSensitive bool
 }
 
 type SymbolSearchItem struct {
@@ -63,9 +65,11 @@ type SymbolSearchResult struct {
 }
 
 type SearchTextOptions struct {
-	Query string
-	Limit int
-	Lang  string
+	Query         string
+	Limit         int
+	Lang          string
+	PathSubstr    string
+	CaseSensitive bool
 }
 
 type TextSearchItem struct {
