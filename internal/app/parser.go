@@ -3,277 +3,83 @@ package app
 import (
 	"fmt"
 	"go/ast"
-	goparser "go/parser"
-	"go/token"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	sitter "github.com/smacker/go-tree-sitter"
-	tsjavascript "github.com/smacker/go-tree-sitter/javascript"
-	tspython "github.com/smacker/go-tree-sitter/python"
-	tstypescript "github.com/smacker/go-tree-sitter/typescript/typescript"
+	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
 
+type languageSpec struct {
+	name       string
+	extensions []string
+	parse      func(path string, content []byte) ([]Symbol, error)
+}
+
+var languageSpecs = []languageSpec{
+	{
+		name:       "go",
+		extensions: []string{".go"},
+		parse: func(path string, content []byte) ([]Symbol, error) {
+			return parseGo(path, content)
+		},
+	},
+	{
+		name:       "python",
+		extensions: []string{".py"},
+		parse: func(_ string, content []byte) ([]Symbol, error) {
+			return parsePythonTreeSitter(content)
+		},
+	},
+	{
+		name:       "typescript",
+		extensions: []string{".ts", ".tsx"},
+		parse:      parseTypeScriptSymbols,
+	},
+	{
+		name:       "javascript",
+		extensions: []string{".js", ".jsx", ".mjs", ".cjs"},
+		parse:      parseJavaScriptSymbols,
+	},
+}
+
 func DetectLanguage(path string) string {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".go":
-		return "go"
-	case ".py":
-		return "python"
-	case ".ts", ".tsx":
-		return "typescript"
-	case ".js", ".jsx", ".mjs", ".cjs":
-		return "javascript"
-	default:
+	spec := languageSpecForPath(path)
+	if spec == nil {
 		return ""
 	}
+	return spec.name
 }
 
 func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
-	lang := DetectLanguage(path)
-	switch lang {
-	case "go":
-		syms, err := parseGo(path, content)
-		return syms, lang, err
-	case "python":
-		syms, err := parsePythonTreeSitter(content)
-		return syms, lang, err
-	case "typescript":
-		syms, err := parseTSJSTreeSitter(content, tstypescript.GetLanguage())
-		return syms, lang, err
-	case "javascript":
-		syms, err := parseTSJSTreeSitter(content, tsjavascript.GetLanguage())
-		return syms, lang, err
-	default:
+	spec := languageSpecForPath(path)
+	if spec == nil {
 		return nil, "", nil
 	}
+	syms, err := spec.parse(path, content)
+	return syms, spec.name, err
 }
 
-func parseGo(path string, content []byte) ([]Symbol, error) {
-	fset := token.NewFileSet()
-	file, err := goparser.ParseFile(fset, path, content, goparser.ParseComments)
-	if err != nil {
-		return nil, err
+func languageSpecForPath(path string) *languageSpec {
+	ext := strings.ToLower(filepath.Ext(path))
+	for i := range languageSpecs {
+		spec := &languageSpecs[i]
+		for _, candidate := range spec.extensions {
+			if ext == candidate {
+				return spec
+			}
+		}
 	}
-	var symbols []Symbol
-	ast.Inspect(file, func(n ast.Node) bool {
-		switch node := n.(type) {
-		case *ast.FuncDecl:
-			start := fset.Position(node.Pos())
-			end := fset.Position(node.End())
-			kind := "function"
-			qualified := node.Name.Name
-			sig := renderGoFuncSignature(node)
-			if node.Recv != nil && len(node.Recv.List) > 0 {
-				kind = "method"
-				recv := recvType(node.Recv.List[0].Type)
-				qualified = recv + "." + node.Name.Name
-			}
-			symbols = append(symbols, Symbol{
-				Name:          node.Name.Name,
-				QualifiedName: qualified,
-				Kind:          kind,
-				Signature:     sig,
-				StartLine:     start.Line,
-				EndLine:       end.Line,
-				StartByte:     start.Offset,
-				EndByte:       end.Offset,
-			})
-			return false
-		case *ast.TypeSpec:
-			start := fset.Position(node.Pos())
-			end := fset.Position(node.End())
-			kind := "type"
-			switch node.Type.(type) {
-			case *ast.InterfaceType:
-				kind = "interface"
-			case *ast.StructType:
-				kind = "struct"
-			}
-			symbols = append(symbols, Symbol{
-				Name:          node.Name.Name,
-				QualifiedName: node.Name.Name,
-				Kind:          kind,
-				Signature:     "type " + node.Name.Name,
-				StartLine:     start.Line,
-				EndLine:       end.Line,
-				StartByte:     start.Offset,
-				EndByte:       end.Offset,
-			})
-			return false
-		case *ast.GenDecl:
-			if node.Tok != token.CONST && node.Tok != token.VAR {
-				return true
-			}
-			for _, spec := range node.Specs {
-				vs, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-				for _, name := range vs.Names {
-					start := fset.Position(name.Pos())
-					end := fset.Position(vs.End())
-					symbols = append(symbols, Symbol{
-						Name:          name.Name,
-						QualifiedName: name.Name,
-						Kind:          strings.ToLower(node.Tok.String()),
-						Signature:     strings.ToLower(node.Tok.String()) + " " + name.Name,
-						StartLine:     start.Line,
-						EndLine:       end.Line,
-						StartByte:     start.Offset,
-						EndByte:       end.Offset,
-					})
-				}
-			}
-		}
-		return true
-	})
-	sortSymbols(symbols)
-	return symbols, nil
+	return nil
 }
 
-func parsePythonTreeSitter(content []byte) ([]Symbol, error) {
-	return parseWithTreeSitter(content, tspython.GetLanguage(), func(root *sitter.Node) []Symbol {
-		var symbols []Symbol
-		var walk func(node *sitter.Node, container string)
-		walk = func(node *sitter.Node, container string) {
-			if node == nil || node.IsNull() {
-				return
-			}
-			switch node.Type() {
-			case "decorated_definition":
-				for i := 0; i < int(node.NamedChildCount()); i++ {
-					child := node.NamedChild(i)
-					if child != nil && child.Type() != "decorator" {
-						walk(child, container)
-					}
-				}
-				return
-			case "class_definition":
-				nameNode := node.ChildByFieldName("name")
-				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					symbols = append(symbols, makeSymbol(content, node, name, name, "class"))
-					walk(node.ChildByFieldName("body"), name)
-					return
-				}
-			case "function_definition", "async_function_definition":
-				nameNode := node.ChildByFieldName("name")
-				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					kind := "function"
-					qualified := name
-					if container != "" {
-						kind = "method"
-						qualified = container + "." + name
-					}
-					sym := makeSymbol(content, node, name, qualified, kind)
-					sym.Signature = pythonSignature(node, content)
-					symbols = append(symbols, sym)
-					walk(node.ChildByFieldName("body"), "")
-					return
-				}
-			}
-			for i := 0; i < int(node.NamedChildCount()); i++ {
-				walk(node.NamedChild(i), container)
-			}
-		}
-		walk(root, "")
-		sortSymbols(symbols)
-		return symbols
-	})
-}
-
-func parseTSJSTreeSitter(content []byte, language *sitter.Language) ([]Symbol, error) {
-	return parseWithTreeSitter(content, language, func(root *sitter.Node) []Symbol {
-		var symbols []Symbol
-		var walk func(node *sitter.Node, className string)
-		walk = func(node *sitter.Node, className string) {
-			if node == nil || node.IsNull() {
-				return
-			}
-			switch node.Type() {
-			case "export_statement", "statement_block", "program", "class_body":
-				for i := 0; i < int(node.NamedChildCount()); i++ {
-					walk(node.NamedChild(i), className)
-				}
-				return
-			case "class_declaration":
-				nameNode := node.ChildByFieldName("name")
-				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					symbols = append(symbols, makeSymbol(content, node, name, name, "class"))
-					walk(node.ChildByFieldName("body"), name)
-					return
-				}
-			case "function_declaration", "generator_function_declaration":
-				nameNode := node.ChildByFieldName("name")
-				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					sym := makeSymbol(content, node, name, name, "function")
-					sym.Signature = signatureFromNode(node, content)
-					symbols = append(symbols, sym)
-				}
-				return
-			case "method_definition":
-				nameNode := node.ChildByFieldName("name")
-				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					qualified := name
-					if className != "" {
-						qualified = className + "." + name
-					}
-					sym := makeSymbol(content, node, name, qualified, "method")
-					sym.Signature = signatureFromNode(node, content)
-					symbols = append(symbols, sym)
-				}
-				return
-			case "interface_declaration":
-				appendNamedNode(&symbols, node, content, "name", "interface")
-				return
-			case "type_alias_declaration":
-				appendNamedNode(&symbols, node, content, "name", "type")
-				return
-			case "enum_declaration":
-				appendNamedNode(&symbols, node, content, "name", "enum")
-				return
-			case "lexical_declaration", "variable_declaration":
-				for i := 0; i < int(node.NamedChildCount()); i++ {
-					decl := node.NamedChild(i)
-					if decl == nil || decl.Type() != "variable_declarator" {
-						continue
-					}
-					nameNode := decl.ChildByFieldName("name")
-					valueNode := decl.ChildByFieldName("value")
-					if nameNode == nil || valueNode == nil {
-						continue
-					}
-					switch valueNode.Type() {
-					case "arrow_function", "function_expression", "generator_function":
-						name := nodeText(nameNode, content)
-						sym := makeSymbol(content, decl, name, name, "function")
-						sym.Signature = signatureFromNode(decl, content)
-						symbols = append(symbols, sym)
-					}
-				}
-				return
-			}
-			for i := 0; i < int(node.NamedChildCount()); i++ {
-				walk(node.NamedChild(i), className)
-			}
-		}
-		walk(root, "")
-		sortSymbols(symbols)
-		return symbols
-	})
-}
-
-func parseWithTreeSitter(content []byte, language *sitter.Language, extract func(root *sitter.Node) []Symbol) ([]Symbol, error) {
-	parser := sitter.NewParser()
+func parseWithTreeSitter(content []byte, language *treesitter.Language, extract func(root *treesitter.Node) []Symbol) ([]Symbol, error) {
+	parser := treesitter.NewParser()
 	defer parser.Close()
-	parser.SetLanguage(language)
-	tree := parser.Parse(nil, content)
+	if err := parser.SetLanguage(language); err != nil {
+		return nil, fmt.Errorf("set tree-sitter language: %w", err)
+	}
+	tree := parser.Parse(content, nil)
 	if tree == nil {
 		return nil, fmt.Errorf("failed to parse source")
 	}
@@ -285,7 +91,7 @@ func parseWithTreeSitter(content []byte, language *sitter.Language, extract func
 	return extract(root), nil
 }
 
-func appendNamedNode(symbols *[]Symbol, node *sitter.Node, content []byte, fieldName, kind string) {
+func appendNamedNode(symbols *[]Symbol, node *treesitter.Node, content []byte, fieldName, kind string) {
 	nameNode := node.ChildByFieldName(fieldName)
 	if nameNode == nil {
 		return
@@ -296,9 +102,9 @@ func appendNamedNode(symbols *[]Symbol, node *sitter.Node, content []byte, field
 	*symbols = append(*symbols, sym)
 }
 
-func makeSymbol(content []byte, node *sitter.Node, name, qualifiedName, kind string) Symbol {
-	start := node.StartPoint()
-	end := node.EndPoint()
+func makeSymbol(content []byte, node *treesitter.Node, name, qualifiedName, kind string) Symbol {
+	start := node.StartPosition()
+	end := node.EndPosition()
 	return Symbol{
 		Name:          name,
 		QualifiedName: qualifiedName,
@@ -311,7 +117,7 @@ func makeSymbol(content []byte, node *sitter.Node, name, qualifiedName, kind str
 	}
 }
 
-func signatureFromNode(node *sitter.Node, content []byte) string {
+func signatureFromNode(node *treesitter.Node, content []byte) string {
 	if node == nil {
 		return ""
 	}
@@ -324,16 +130,16 @@ func signatureFromNode(node *sitter.Node, content []byte) string {
 	return strings.TrimSpace(text)
 }
 
-func pythonSignature(node *sitter.Node, content []byte) string {
+func pythonSignature(node *treesitter.Node, content []byte) string {
 	text := signatureFromNode(node, content)
 	return strings.TrimSuffix(text, ":")
 }
 
-func nodeText(node *sitter.Node, content []byte) string {
+func nodeText(node *treesitter.Node, content []byte) string {
 	if node == nil {
 		return ""
 	}
-	return strings.TrimSpace(node.Content(content))
+	return strings.TrimSpace(node.Utf8Text(content))
 }
 
 func sortSymbols(symbols []Symbol) {

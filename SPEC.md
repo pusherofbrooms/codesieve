@@ -359,6 +359,8 @@ Recommended initial languages:
 - Python
 - TypeScript / JavaScript
 
+Non-Go parsing uses the official `github.com/tree-sitter/go-tree-sitter` runtime with vendored grammar sources for reproducible Nix builds. See `docs/PARSERS.md` for parser layout, vendoring policy, and extension guidance.
+
 Language support only needs to cover:
 
 - file detection

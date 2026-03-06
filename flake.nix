@@ -15,7 +15,8 @@
           pname = "codesieve";
           inherit version;
           src = ./.;
-          vendorHash = "sha256-MR943XkJosza5+BSSA6cwqf/25zxPLiG84ARz0xkSyg=";
+          vendorHash = "sha256-Qq85/cO7FAFRSARsGGmGkUrD1KQ4o+5P43L/7w9RE0g=";
+          proxyVendor = true;
           subPackages = [ "cmd/codesieve" ];
 
           ldflags = [ "-s" "-w" "-X main.version=${version}" ];
