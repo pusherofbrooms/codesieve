@@ -94,6 +94,7 @@ When reasoning about code, follow this order:
 1. **Index first** (once per repo or after changes):
 
    - If the project is not yet indexed, run `codesieve index . --json`.
+   - Note that indexing can take a long time on large code bases.
 
 2. **Prefer symbol search:**
 
