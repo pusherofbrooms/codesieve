@@ -29,13 +29,15 @@ nix flake check
 
 ## Build without Nix
 
-If you have a recent Go toolchain and a C compiler installed (for Tree-sitter's C code), you can build directly with Go:
+If you have a recent Go toolchain and a C compiler installed (for Tree-sitter's C code), you can build directly with Go.
+
+### Local build from this repo
 
 ```bash
 # From the repo root
 go build -o codesieve ./cmd/codesieve
 
-# Or install into your GOPATH/bin (if configured)
+# Or install into your Go bin dir (GOBIN/GOPATH/bin)
 go install ./cmd/codesieve
 ```
 
@@ -44,6 +46,19 @@ Then run:
 ```bash
 ./codesieve help
 ```
+
+### Remote install via `go install`
+
+Once the module path and upstream repository are aligned, you will be able to install
+`codesieve` directly from GitHub:
+
+```bash
+go install github.com/pusherofbrooms/codesieve/cmd/codesieve@latest
+```
+
+This builds the CLI and places the `codesieve` binary in `$GOBIN` (or `$GOPATH/bin` if
+`GOBIN` is not set). Ensure that directory is on your `PATH` so agents and shells can run
+`codesieve` without a local build.
 
 For development tooling (tests, Bats, jq, etc.), you can either:
 
