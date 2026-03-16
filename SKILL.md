@@ -5,113 +5,64 @@ description: Token-efficient local code indexing and retrieval for coding agents
 
 # codesieve skill
 
-## Purpose
+`codesieve` is a local retrieval CLI for code. Use it to avoid full-file reads.
 
-`codesieve` lets agents explore a local codebase without loading entire files.
-It indexes the repository once, then retrieves only the symbols or file slices needed.
+## Operating mode
 
-Use it to:
+- Run from repo root.
+- Prefer `--json` and parse output.
+- If unsure about commands, run `codesieve --help`.
 
-- index the current project
-- search for likely symbols
-- inspect file structure
-- fetch exact symbol bodies
-- fetch small file slices
-- fall back to text search when needed
+## Core retrieval loop
 
-## Environment
+1. Index once:
 
-- The `codesieve` CLI is available on the system PATH.
-- Commands are run in the repository root.
-- `CODESIEVE_DB_PATH` may be set to choose a specific SQLite index file; if unset, the default is used.
+   ```bash
+   codesieve index . --json
+   ```
 
-All commands should be executed with `--json` and their JSON output parsed programmatically.
+2. Search symbols first:
 
-## Commands
+   ```bash
+   codesieve search symbol "<query>" --json
+   ```
 
-Use these commands via the host's shell/tool mechanism:
+3. Inspect structure before large reads:
 
-- **Index repository**
+   ```bash
+   codesieve outline <path/to/file> --json
+   ```
 
-  ```bash
-  codesieve index . --json
-  ```
+4. Fetch exact symbol source:
 
-  Optional flags:
-  - `--force` (reindex all files)
-  - `--no-gitignore`
-  - `--max-files N`
-  - `--max-size BYTES`
+   ```bash
+   codesieve show symbol <symbol-id> --json
+   ```
 
-- **Search symbols**
+5. Fallback only when needed:
 
-  ```bash
-  codesieve search symbol "<query>" --json
-  ```
+   ```bash
+   codesieve search text "<query>" --json
+   codesieve show file <path/to/file> --start-line N --end-line M --json
+   ```
 
-  Optional filters:
-  - `--lang <language>`
-  - `--kind <kind>` (e.g. function, method, class)
-  - `--limit N`
-  - `--path-substr <substring>`
+## Common narrowing flags
 
-- **Search text**
+- `--limit=<n>`
+- `--lang=<language>`
+- `--path-substr=<substring>`
+- `--kind=<kind>` (symbol search only)
+- `--case-sensitive`
 
-  ```bash
-  codesieve search text "<query>" --json
-  ```
+## Less-common flags (discover as needed)
 
-  Optional filters:
-  - `--lang <language>`
-  - `--limit N`
-  - `--path-substr <substring>`
+Use `codesieve --help` to discover uncommon flags and command forms.
 
-- **Outline a file**
+## Goal
 
-  ```bash
-  codesieve outline <path/to/file> --json
-  ```
+Default behavior should be:
 
-- **Show a symbol by ID**
-
-  ```bash
-  codesieve show symbol <symbol-id> --json
-  ```
-
-  Optional:
-  - `--context N` (lines of surrounding context)
-
-- **Show a file slice**
-
-  ```bash
-  codesieve show file <path/to/file> --start-line N --end-line M --json
-  ```
-
-## Retrieval discipline
-
-When reasoning about code, follow this order:
-
-1. **Index first** (once per repo or after changes):
-
-   - If the project is not yet indexed, run `codesieve index . --json`.
-   - Note that indexing can take a long time on large code bases.
-
-2. **Prefer symbol search:**
-
-   - Use `codesieve search symbol` to find functions, methods, classes, and types by name.
-   - Use filters (`--lang`, `--kind`, `--path-substr`) to narrow results.
-
-3. **Use outlines before reading large files:**
-
-   - Use `codesieve outline <file>` to understand structure without loading the whole file.
-
-4. **Fetch exact symbol bodies:**
-
-   - Use `codesieve show symbol <id>` to retrieve only the symbol's source (with optional context), not the entire file.
-
-5. **Fallback to text search and file slices:**
-
-   - If symbol search is insufficient, use `codesieve search text`.
-   - Use `codesieve show file` with a narrow line range instead of reading entire files.
-
-Avoid reading whole files through other mechanisms when `codesieve` can provide a smaller, more relevant slice.
+- search first
+- outline second
+- exact symbol retrieval third
+- text search and file slices last

@@ -8,12 +8,12 @@
 For a brief overview of commands and flags, run:
 
 ```bash
-codesieve help
+codesieve --help
 ```
 
-For agent-focused guidance on how to use `codesieve` effectively, see:
+For agent-focused guidance, use:
 
-- `docs/AGENT_USAGE.md`
+- `SKILL.md` (canonical agent instructions)
 - `docs/MANUAL_TESTING.md` (optional real-world smoke tests)
 
 ## Secret path skipping
@@ -62,7 +62,7 @@ go install ./cmd/codesieve
 Then run:
 
 ```bash
-./codesieve help
+./codesieve --help
 ```
 
 ## Build and run (Nix)
