@@ -661,6 +661,8 @@ Requirements:
 
 Secret-file skipping is a v1 safety priority, not optional polish.
 
+Default secret-path detection should be path-based (no required full-content secret scanning in the indexing path). Implementations may allow additional user-defined secret path globs via environment variable configuration.
+
 ---
 
 ## Agent usage guide
