@@ -431,7 +431,7 @@ More languages can be added later.
 
 To keep language additions cheap and consistent, the implementation should include a small extension pattern:
 
-1. **Per-language parser packages and registration**
+1. **Per-language parser packages and registration** *(done)*
    - Keep a thin central registry.
    - Let each language expose a small spec (language name, extensions, parser function).
    - Avoid one large monolithic parser registration file over time.
