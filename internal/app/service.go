@@ -82,6 +82,12 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			_ = s.store.addDiagnostic(ctx, repoID, d)
 			return nil
 		}
+		if isSecretPath(rel) {
+			d := Diagnostic{Code: "SKIPPED_SECRET", Path: rel}
+			res.FilesSkipped = append(res.FilesSkipped, d)
+			_ = s.store.addDiagnostic(ctx, repoID, d)
+			return nil
+		}
 		lang := DetectLanguage(fullPath)
 		if lang == "" {
 			return nil

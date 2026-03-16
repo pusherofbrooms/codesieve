@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -332,10 +333,66 @@ func TestDiagnosticsPersistAndClear(t *testing.T) {
 		t.Fatalf("second Index error: %v", err)
 	}
 
-	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM diagnostics WHERE repo_id = ?`, repoID).Scan(&diagCount); err != nil {
-		t.Fatalf("count diagnostics after second index: %v", err)
+	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM diagnostics WHERE repo_id = ? AND code = 'SKIPPED_IGNORED'`, repoID).Scan(&diagCount); err != nil {
+		t.Fatalf("count SKIPPED_IGNORED diagnostics after second index: %v", err)
 	}
 	if diagCount != 0 {
-		t.Fatalf("expected diagnostics to be cleared when conditions change, got %d rows", diagCount)
+		t.Fatalf("expected SKIPPED_IGNORED diagnostics to be cleared when conditions change, got %d rows", diagCount)
+	}
+}
+
+func TestIndexSkipsSecretFiles(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	srcRepo := fixtureRepo(t)
+	workdir := filepath.Join(t.TempDir(), "workrepo-secrets")
+	copyDir(t, srcRepo, workdir)
+
+	if err := os.WriteFile(filepath.Join(workdir, "src", "secrets.py"), []byte("def leaked():\n    return 'AKIA_TEST_VALUE'\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile secrets.py: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, ".env"), []byte("API_KEY=AKIA_ENV_VALUE\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile .env: %v", err)
+	}
+
+	res, err := svc.Index(ctx, workdir, IndexOptions{})
+	if err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	secretSkips := 0
+	for _, d := range res.FilesSkipped {
+		if d.Code == "SKIPPED_SECRET" {
+			secretSkips++
+			if strings.Contains(d.Message, "AKIA_") {
+				t.Fatalf("secret diagnostic message leaked secret-like value: %+v", d)
+			}
+		}
+	}
+	if secretSkips < 2 {
+		t.Fatalf("expected at least two SKIPPED_SECRET diagnostics, got %d (%+v)", secretSkips, res.FilesSkipped)
+	}
+
+	workAbs, err := filepath.Abs(workdir)
+	if err != nil {
+		t.Fatalf("Abs(workdir): %v", err)
+	}
+
+	items, err := svc.store.searchSymbols(ctx, workAbs, SearchSymbolOptions{Query: "leaked", Limit: 10})
+	if err != nil {
+		t.Fatalf("searchSymbols error: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected no symbols from secret files, got %d", len(items))
+	}
+
+	repoID := repoIDForPath(t, svc.store.db, workAbs)
+	var secretDiagCount int
+	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM diagnostics WHERE repo_id = ? AND code = 'SKIPPED_SECRET'`, repoID).Scan(&secretDiagCount); err != nil {
+		t.Fatalf("count SKIPPED_SECRET diagnostics: %v", err)
+	}
+	if secretDiagCount < 2 {
+		t.Fatalf("expected at least two SKIPPED_SECRET diagnostics in DB, got %d", secretDiagCount)
 	}
 }

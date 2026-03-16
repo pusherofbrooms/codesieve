@@ -131,3 +131,29 @@ EOF
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '[.data.results[] | select(.qualified_name == "A.foo")] | length == 2' >/dev/null
 }
+
+@test "index skips secret paths without indexing their symbols" {
+  worktree="$BATS_TEST_TMPDIR/secret-skip"
+  cp -R "$FIXTURE" "$worktree"
+
+  cat > "$worktree/src/secrets.py" <<'EOF'
+def leaked_key():
+    return "AKIA_SHOULD_NOT_BE_INDEXED"
+EOF
+
+  cat > "$worktree/.env" <<'EOF'
+API_KEY=AKIA_ENV_SHOULD_NOT_BE_INDEXED
+EOF
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.ok == true' >/dev/null
+  echo "$output" | jq -e '[.data.files_skipped[] | select(.code == "SKIPPED_SECRET")] | length >= 2' >/dev/null
+
+  pushd "$worktree" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol leaked_key --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.results | length == 0' >/dev/null
+}
