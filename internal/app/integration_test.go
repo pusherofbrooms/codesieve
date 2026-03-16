@@ -621,3 +621,87 @@ func TestRepoOutlineErrorsWhenRepoNotIndexed(t *testing.T) {
 		t.Fatalf("expected FILE_NOT_INDEXED, got %q", ce.Code)
 	}
 }
+
+func TestShowSymbolsIncludesPerIDErrors(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := fixtureRepo(t)
+	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	items, err := svc.store.searchSymbols(ctx, repoPath, SearchSymbolOptions{Query: "Login", Limit: 10})
+	if err != nil {
+		t.Fatalf("searchSymbols error: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatalf("expected at least one symbol")
+	}
+
+	result, err := svc.ShowSymbols(ctx, []string{items[0].ID, "missing-symbol-id"})
+	if err != nil {
+		t.Fatalf("ShowSymbols error: %v", err)
+	}
+	if len(result.Symbols) != 1 {
+		t.Fatalf("expected one resolved symbol, got %d", len(result.Symbols))
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected one per-id error, got %d", len(result.Errors))
+	}
+	if result.Errors[0].Code != "SYMBOL_NOT_FOUND" {
+		t.Fatalf("expected SYMBOL_NOT_FOUND error code, got %+v", result.Errors[0])
+	}
+}
+
+func TestShowSymbolVerifyDetectsDrift(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	srcRepo := fixtureRepo(t)
+	workdir := filepath.Join(t.TempDir(), "workrepo-verify")
+	copyDir(t, srcRepo, workdir)
+	if _, err := svc.Index(ctx, workdir, IndexOptions{}); err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	workAbs, err := normalizeRepoPath(workdir)
+	if err != nil {
+		t.Fatalf("normalizeRepoPath(workdir): %v", err)
+	}
+	items, err := svc.store.searchSymbols(ctx, workAbs, SearchSymbolOptions{Query: "Login", Limit: 10})
+	if err != nil {
+		t.Fatalf("searchSymbols error: %v", err)
+	}
+	var loginID string
+	for _, item := range items {
+		if item.FilePath == "src/auth.go" && item.Name == "Login" {
+			loginID = item.ID
+			break
+		}
+	}
+	if loginID == "" {
+		t.Fatalf("expected Login symbol in src/auth.go, got %+v", items)
+	}
+
+	first, err := svc.ShowSymbol(ctx, loginID, 0, true)
+	if err != nil {
+		t.Fatalf("ShowSymbol verify=true first call: %v", err)
+	}
+	if first.Verification == nil || !first.Verification.Verified {
+		t.Fatalf("expected verification success, got %+v", first.Verification)
+	}
+
+	mutated := "package main\n\ntype AuthService struct{}\n\nfunc LoginUser(user string) error {\n\treturn nil\n}\n\nfunc (a *AuthService) Logout() error {\n\treturn nil\n}\n\nconst AuthHeader = \"X-Auth-Header\"\n"
+	if err := os.WriteFile(filepath.Join(workdir, "src", "auth.go"), []byte(mutated), 0o644); err != nil {
+		t.Fatalf("WriteFile mutated auth.go: %v", err)
+	}
+
+	second, err := svc.ShowSymbol(ctx, loginID, 0, true)
+	if err != nil {
+		t.Fatalf("ShowSymbol verify=true second call: %v", err)
+	}
+	if second.Verification == nil || second.Verification.Verified {
+		t.Fatalf("expected verification failure after drift, got %+v", second.Verification)
+	}
+}

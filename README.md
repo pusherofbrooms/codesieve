@@ -23,7 +23,8 @@ codesieve index . --json
 codesieve repo outline --json
 codesieve search symbol Login --json
 codesieve outline src/auth.go --json
-codesieve show symbol <id> --json
+codesieve show symbol <id> --verify --json
+codesieve show symbols <id-1> <id-2> --json
 ```
 
 ## Secret path skipping

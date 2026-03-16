@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -265,7 +266,7 @@ func (s *Service) Outline(ctx context.Context, path string) (OutlineResult, erro
 	return result, nil
 }
 
-func (s *Service) ShowSymbol(ctx context.Context, id string, contextLines int) (ShowSymbolResult, error) {
+func (s *Service) ShowSymbol(ctx context.Context, id string, contextLines int, verify bool) (ShowSymbolResult, error) {
 	rec, err := s.store.getSymbol(ctx, id)
 	if err != nil {
 		return ShowSymbolResult{}, err
@@ -284,7 +285,47 @@ func (s *Service) ShowSymbol(ctx context.Context, id string, contextLines int) (
 	if err != nil {
 		return ShowSymbolResult{}, err
 	}
-	return ShowSymbolResult{ID: rec.ID, Name: rec.Name, Kind: rec.Kind, FilePath: rec.FilePath, Language: rec.Language, QualifiedName: rec.QualifiedName, Signature: rec.Signature, StartLine: rec.StartLine, EndLine: rec.EndLine, Content: chunk}, nil
+	result := ShowSymbolResult{ID: rec.ID, Name: rec.Name, Kind: rec.Kind, FilePath: rec.FilePath, Language: rec.Language, QualifiedName: rec.QualifiedName, Signature: rec.Signature, StartLine: rec.StartLine, EndLine: rec.EndLine, Content: chunk}
+	if verify {
+		result.Verification = verifyStoredSymbol(rec, fullPath, content)
+	}
+	return result, nil
+}
+
+func (s *Service) ShowSymbols(ctx context.Context, ids []string) (ShowSymbolsResult, error) {
+	result := ShowSymbolsResult{Symbols: make([]ShowSymbolResult, 0, len(ids))}
+	for _, id := range ids {
+		sym, err := s.ShowSymbol(ctx, id, 0, false)
+		if err != nil {
+			var coded *CodedError
+			if errors.As(err, &coded) {
+				result.Errors = append(result.Errors, BatchError{ID: id, Code: coded.Code, Message: coded.Message})
+				continue
+			}
+			return ShowSymbolsResult{}, err
+		}
+		result.Symbols = append(result.Symbols, sym)
+	}
+	return result, nil
+}
+
+func verifyStoredSymbol(rec *symbolRecord, fullPath string, content []byte) *SymbolVerification {
+	parsed, _, err := ParseSymbols(fullPath, content)
+	if err != nil {
+		return &SymbolVerification{Verified: false, Reason: "unable to parse file for verification"}
+	}
+	for i := range parsed {
+		parsed[i].Language = rec.Language
+		parsed[i].FilePath = rec.FilePath
+		if parsed[i].QualifiedName == "" {
+			parsed[i].QualifiedName = parsed[i].Name
+		}
+		candidateID := symbolID(rec.RepoPath, rec.FilePath, parsed[i])
+		if candidateID == rec.ID {
+			return &SymbolVerification{Verified: true}
+		}
+	}
+	return &SymbolVerification{Verified: false, Reason: "symbol no longer matches indexed location"}
 }
 
 func (s *Service) ShowFile(ctx context.Context, path string, startLine, endLine int) (ShowFileResult, error) {

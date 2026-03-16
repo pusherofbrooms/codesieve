@@ -264,7 +264,7 @@ func handleRepo(ctx context.Context, svc *app.Service, args []string, start time
 
 func handleShow(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
 	if len(args) == 0 {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
 	}
 	if isHelpArg(args[0]) {
 		printShowUsage()
@@ -272,33 +272,51 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 	}
 
 	subcommand := args[0]
-	if subcommand != "symbol" && subcommand != "file" {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
+	if subcommand != "symbol" && subcommand != "symbols" && subcommand != "file" {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
 	}
 
 	if len(args) < 2 {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
 	}
 	if isHelpArg(args[1]) {
-		if subcommand == "symbol" {
+		switch subcommand {
+		case "symbol":
 			printShowSymbolUsage()
-		} else {
+		case "symbols":
+			printShowSymbolsUsage()
+		default:
 			printShowFileUsage()
 		}
 		return 0
 	}
+	if subcommand == "symbols" && strings.HasPrefix(args[1], "-") {
+		return printError(start, false, app.ErrInvalidArgs("missing symbol ids"))
+	}
 
 	jsonMode := false
 	contentOnly := false
+	verify := false
 	contextLines := 0
 	startLine := 0
 	endLine := 0
+	symbolIDs := []string{}
+	if subcommand == "symbols" {
+		symbolIDs = append(symbolIDs, args[1])
+	}
 	for _, arg := range args[2:] {
+		if subcommand == "symbols" && !strings.HasPrefix(arg, "-") {
+			symbolIDs = append(symbolIDs, arg)
+			continue
+		}
 		switch {
 		case isHelpArg(arg):
-			if subcommand == "symbol" {
+			switch subcommand {
+			case "symbol":
 				printShowSymbolUsage()
-			} else {
+			case "symbols":
+				printShowSymbolsUsage()
+			default:
 				printShowFileUsage()
 			}
 			return 0
@@ -306,6 +324,8 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 			jsonMode = true
 		case arg == "--content-only":
 			contentOnly = true
+		case arg == "--verify":
+			verify = true
 		case strings.HasPrefix(arg, "--context="):
 			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--context="))
 			if err != nil {
@@ -331,7 +351,7 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 
 	switch subcommand {
 	case "symbol":
-		result, err := svc.ShowSymbol(ctx, args[1], contextLines)
+		result, err := svc.ShowSymbol(ctx, args[1], contextLines, verify)
 		if err != nil {
 			return printError(start, jsonMode, err)
 		}
@@ -343,7 +363,28 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 			return 0
 		}
 		return printSuccess(start, jsonMode, result)
+	case "symbols":
+		if contextLines != 0 || startLine != 0 || endLine != 0 || verify {
+			return printError(start, jsonMode, app.ErrInvalidArgs("--context, --start-line, --end-line, and --verify are only valid for specific show subcommands"))
+		}
+		result, err := svc.ShowSymbols(ctx, symbolIDs)
+		if err != nil {
+			return printError(start, jsonMode, err)
+		}
+		if contentOnly {
+			for _, sym := range result.Symbols {
+				fmt.Print(sym.Content)
+				if !strings.HasSuffix(sym.Content, "\n") {
+					fmt.Println()
+				}
+			}
+			return 0
+		}
+		return printSuccess(start, jsonMode, result)
 	case "file":
+		if contextLines != 0 || verify {
+			return printError(start, jsonMode, app.ErrInvalidArgs("--context and --verify are only valid for 'show symbol'"))
+		}
 		result, err := svc.ShowFile(ctx, args[1], startLine, endLine)
 		if err != nil {
 			return printError(start, jsonMode, err)
@@ -357,7 +398,7 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 		}
 		return printSuccess(start, jsonMode, result)
 	default:
-		return printError(start, jsonMode, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
+		return printError(start, jsonMode, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
 	}
 }
 
@@ -377,6 +418,7 @@ func printUsage() {
 	fmt.Println("  outline <file>")
 	fmt.Println("  repo outline")
 	fmt.Println("  show symbol <id>")
+	fmt.Println("  show symbols <id...>")
 	fmt.Println("  show file <path>")
 	fmt.Println("")
 	fmt.Println("Run 'codesieve <command> --help' for command-specific help.")
@@ -445,9 +487,9 @@ func printRepoOutlineUsage() {
 }
 
 func printShowUsage() {
-	fmt.Println("Usage: codesieve show <symbol|file> <target> [flags]")
+	fmt.Println("Usage: codesieve show <symbol|symbols|file> <target> [flags]")
 	fmt.Println("")
-	fmt.Println("Run 'codesieve show symbol --help' or 'codesieve show file --help' for details.")
+	fmt.Println("Run 'codesieve show symbol --help', 'codesieve show symbols --help', or 'codesieve show file --help' for details.")
 }
 
 func printShowSymbolUsage() {
@@ -457,6 +499,15 @@ func printShowSymbolUsage() {
 	fmt.Println("  --json")
 	fmt.Println("  --content-only")
 	fmt.Println("  --context=<n>")
+	fmt.Println("  --verify")
+}
+
+func printShowSymbolsUsage() {
+	fmt.Println("Usage: codesieve show symbols <id...> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+	fmt.Println("  --content-only")
 }
 
 func printShowFileUsage() {
@@ -519,7 +570,29 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 			fmt.Printf("- %s: %d\n", k, c)
 		}
 	case app.ShowSymbolResult:
-		fmt.Printf("%s %s %s:%d-%d\n\n%s", v.ID, v.Kind, v.FilePath, v.StartLine, v.EndLine, v.Content)
+		fmt.Printf("%s %s %s:%d-%d\n", v.ID, v.Kind, v.FilePath, v.StartLine, v.EndLine)
+		if v.Verification != nil {
+			status := "failed"
+			if v.Verification.Verified {
+				status = "ok"
+			}
+			fmt.Printf("verification: %s", status)
+			if v.Verification.Reason != "" {
+				fmt.Printf(" (%s)", v.Verification.Reason)
+			}
+			fmt.Println()
+		}
+		fmt.Printf("\n%s", v.Content)
+	case app.ShowSymbolsResult:
+		for _, sym := range v.Symbols {
+			fmt.Printf("%s %s %s:%d-%d\n\n%s", sym.ID, sym.Kind, sym.FilePath, sym.StartLine, sym.EndLine, sym.Content)
+			if !strings.HasSuffix(sym.Content, "\n") {
+				fmt.Println()
+			}
+		}
+		for _, e := range v.Errors {
+			fmt.Printf("%s: %s (%s)\n", e.ID, e.Message, e.Code)
+		}
 	case app.ShowFileResult:
 		fmt.Printf("%s:%d-%d\n\n%s", v.FilePath, v.StartLine, v.EndLine, v.Content)
 	default:

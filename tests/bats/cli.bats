@@ -63,6 +63,67 @@ setup() {
   echo "$output" | jq -e '.data.content | contains("func Login(user string) error")' >/dev/null
 }
 
+@test "show symbols returns batch results with per-id errors" {
+  env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json >/dev/null
+
+  pushd "$FIXTURE" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" outline src/auth.go --json
+  [ "$status" -eq 0 ]
+  login_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Login") | .id')"
+  logout_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Logout") | .id')"
+  [ -n "$login_id" ]
+  [ -n "$logout_id" ]
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show symbols "$login_id" nope-symbol "$logout_id" --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.ok == true' >/dev/null
+  echo "$output" | jq -e '.data.symbols | length == 2' >/dev/null
+  echo "$output" | jq -e '.data.symbols[] | select(.id == "'"$login_id"'" and .name == "Login")' >/dev/null
+  echo "$output" | jq -e '.data.errors | length == 1' >/dev/null
+  echo "$output" | jq -e '.data.errors[] | select(.id == "nope-symbol" and .code == "SYMBOL_NOT_FOUND")' >/dev/null
+}
+
+@test "show symbol verify reports drift when file changes" {
+  worktree="$BATS_TEST_TMPDIR/verify-worktree"
+  cp -R "$FIXTURE" "$worktree"
+
+  env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json >/dev/null
+
+  pushd "$worktree" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" outline src/auth.go --json
+  [ "$status" -eq 0 ]
+  symbol_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Login") | .id')"
+  [ -n "$symbol_id" ]
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show symbol "$symbol_id" --verify --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.verification.verified == true' >/dev/null
+
+  cat > src/auth.go <<'EOF'
+package main
+
+type AuthService struct{}
+
+func LoginUser(user string) error {
+	return nil
+}
+
+func (a *AuthService) Logout() error {
+	return nil
+}
+
+const AuthHeader = "X-Auth-Header"
+EOF
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show symbol "$symbol_id" --verify --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.verification.verified == false' >/dev/null
+}
+
 @test "search text and show file return narrow content" {
   env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json >/dev/null
 
@@ -227,4 +288,8 @@ EOF
   run "$TEST_BIN" show symbol --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: codesieve show symbol <id> [flags]"* ]]
+
+  run "$TEST_BIN" show symbols --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: codesieve show symbols <id...> [flags]"* ]]
 }

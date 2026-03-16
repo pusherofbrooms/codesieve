@@ -42,7 +42,8 @@ description: Token-efficient local code indexing and retrieval for coding agents
 5. Fetch exact symbol source:
 
    ```bash
-   codesieve show symbol <symbol-id> --json
+   codesieve show symbol <symbol-id> --verify --json
+   codesieve show symbols <symbol-id-1> <symbol-id-2> --json
    ```
 
 6. Fallback only when needed:

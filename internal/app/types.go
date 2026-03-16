@@ -128,17 +128,34 @@ type RepoOutlineResult struct {
 	Stale                   bool           `json:"stale"`
 }
 
+type SymbolVerification struct {
+	Verified bool   `json:"verified"`
+	Reason   string `json:"reason,omitempty"`
+}
+
 type ShowSymbolResult struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Kind          string `json:"kind"`
-	FilePath      string `json:"file_path"`
-	Language      string `json:"language"`
-	QualifiedName string `json:"qualified_name,omitempty"`
-	Signature     string `json:"signature,omitempty"`
-	StartLine     int    `json:"start_line"`
-	EndLine       int    `json:"end_line"`
-	Content       string `json:"content"`
+	ID            string              `json:"id"`
+	Name          string              `json:"name"`
+	Kind          string              `json:"kind"`
+	FilePath      string              `json:"file_path"`
+	Language      string              `json:"language"`
+	QualifiedName string              `json:"qualified_name,omitempty"`
+	Signature     string              `json:"signature,omitempty"`
+	StartLine     int                 `json:"start_line"`
+	EndLine       int                 `json:"end_line"`
+	Content       string              `json:"content"`
+	Verification  *SymbolVerification `json:"verification,omitempty"`
+}
+
+type BatchError struct {
+	ID      string `json:"id"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type ShowSymbolsResult struct {
+	Symbols []ShowSymbolResult `json:"symbols"`
+	Errors  []BatchError       `json:"errors,omitempty"`
 }
 
 type ShowFileResult struct {
