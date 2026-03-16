@@ -406,3 +406,79 @@ func TestIndexSkipsSecretFiles(t *testing.T) {
 		t.Fatalf("expected at least two SKIPPED_SECRET diagnostics in DB, got %d", secretDiagCount)
 	}
 }
+
+func TestRepoOutlineSummarizesIndexedRepo(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := fixtureRepo(t)
+	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(repoPath); err != nil {
+		t.Fatalf("Chdir(%s): %v", repoPath, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	result, err := svc.RepoOutline(ctx)
+	if err != nil {
+		t.Fatalf("RepoOutline error: %v", err)
+	}
+
+	if result.RepoPath != repoPath {
+		t.Fatalf("expected RepoPath %q, got %q", repoPath, result.RepoPath)
+	}
+	if result.TotalFiles != 3 {
+		t.Fatalf("expected TotalFiles=3, got %d", result.TotalFiles)
+	}
+	if result.TotalSymbols < 6 {
+		t.Fatalf("expected TotalSymbols>=6, got %d", result.TotalSymbols)
+	}
+	if result.LanguageBreakdown["go"] != 1 || result.LanguageBreakdown["python"] != 1 || result.LanguageBreakdown["typescript"] != 1 {
+		t.Fatalf("unexpected language breakdown: %+v", result.LanguageBreakdown)
+	}
+	if result.TopLevelDirectoryCounts["src"] != 3 {
+		t.Fatalf("unexpected top-level directory counts: %+v", result.TopLevelDirectoryCounts)
+	}
+	if len(result.SymbolKindCounts) == 0 {
+		t.Fatalf("expected non-empty symbol kind counts")
+	}
+	if result.IndexAgeSeconds < 0 {
+		t.Fatalf("expected non-negative index age, got %d", result.IndexAgeSeconds)
+	}
+	if result.IndexedAt == "" {
+		t.Fatalf("expected non-empty indexed_at")
+	}
+}
+
+func TestRepoOutlineErrorsWhenRepoNotIndexed(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	workdir := t.TempDir()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(workdir); err != nil {
+		t.Fatalf("Chdir(%s): %v", workdir, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	_, err = svc.RepoOutline(ctx)
+	if err == nil {
+		t.Fatalf("expected error for non-indexed repo")
+	}
+	ce, ok := err.(*CodedError)
+	if !ok {
+		t.Fatalf("expected *CodedError, got %T", err)
+	}
+	if ce.Code != "FILE_NOT_INDEXED" {
+		t.Fatalf("expected FILE_NOT_INDEXED, got %q", ce.Code)
+	}
+}

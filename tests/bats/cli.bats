@@ -158,6 +158,25 @@ EOF
   echo "$output" | jq -e '.data.results | length == 0' >/dev/null
 }
 
+@test "repo outline returns repository summary" {
+  env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json >/dev/null
+
+  pushd "$FIXTURE" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" repo outline --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.ok == true' >/dev/null
+  echo "$output" | jq -e '.data.repo_path | length > 0' >/dev/null
+  echo "$output" | jq -e '.data.total_files == 3' >/dev/null
+  echo "$output" | jq -e '.data.total_symbols >= 6' >/dev/null
+  echo "$output" | jq -e '.data.language_breakdown.go == 1' >/dev/null
+  echo "$output" | jq -e '.data.top_level_directory_counts.src == 3' >/dev/null
+  echo "$output" | jq -e '.data.symbol_kind_counts | length > 0' >/dev/null
+  echo "$output" | jq -e '.data.index_age_seconds >= 0' >/dev/null
+  echo "$output" | jq -e '.data.stale == false' >/dev/null
+}
+
 @test "top-level help aliases exit successfully" {
   run "$TEST_BIN" --help
   [ "$status" -eq 0 ]

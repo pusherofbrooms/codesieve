@@ -306,6 +306,14 @@ func (s *Service) ShowFile(ctx context.Context, path string, startLine, endLine 
 	return ShowFileResult{FilePath: relPath, StartLine: startLine, EndLine: endLine, Content: chunk}, nil
 }
 
+func (s *Service) RepoOutline(ctx context.Context) (RepoOutlineResult, error) {
+	repoPath, err := currentRepoRoot()
+	if err != nil {
+		return RepoOutlineResult{}, err
+	}
+	return s.store.repoSummary(ctx, repoPath)
+}
+
 func currentRepoRoot() (string, error) {
 	return os.Getwd()
 }

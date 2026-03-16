@@ -101,6 +101,18 @@ type OutlineResult struct {
 	Symbols  []OutlineSymbol `json:"symbols"`
 }
 
+type RepoOutlineResult struct {
+	RepoPath                string         `json:"repo_path"`
+	TotalFiles              int            `json:"total_files"`
+	TotalSymbols            int            `json:"total_symbols"`
+	LanguageBreakdown       map[string]int `json:"language_breakdown"`
+	TopLevelDirectoryCounts map[string]int `json:"top_level_directory_counts"`
+	SymbolKindCounts        map[string]int `json:"symbol_kind_counts"`
+	IndexedAt               string         `json:"indexed_at"`
+	IndexAgeSeconds         int64          `json:"index_age_seconds"`
+	Stale                   bool           `json:"stale"`
+}
+
 type ShowSymbolResult struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`

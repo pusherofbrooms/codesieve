@@ -54,6 +54,8 @@ func run() int {
 		return handleSearch(ctx, svc, args[1:], start)
 	case "outline":
 		return handleOutline(ctx, svc, args[1:], start)
+	case "repo":
+		return handleRepo(ctx, svc, args[1:], start)
 	case "show":
 		return handleShow(ctx, svc, args[1:], start)
 	default:
@@ -218,6 +220,38 @@ func handleOutline(ctx context.Context, svc *app.Service, args []string, start t
 	return printSuccess(start, jsonMode, result)
 }
 
+func handleRepo(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
+	if len(args) == 0 {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve repo outline"))
+	}
+	if isHelpArg(args[0]) {
+		printRepoUsage()
+		return 0
+	}
+	if args[0] != "outline" {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve repo outline"))
+	}
+
+	jsonMode := false
+	for _, arg := range args[1:] {
+		switch {
+		case isHelpArg(arg):
+			printRepoOutlineUsage()
+			return 0
+		case arg == "--json":
+			jsonMode = true
+		default:
+			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
+		}
+	}
+
+	result, err := svc.RepoOutline(ctx)
+	if err != nil {
+		return printError(start, jsonMode, err)
+	}
+	return printSuccess(start, jsonMode, result)
+}
+
 func handleShow(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
 	if len(args) == 0 {
 		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
@@ -331,6 +365,7 @@ func printUsage() {
 	fmt.Println("  search symbol <query>")
 	fmt.Println("  search text <query>")
 	fmt.Println("  outline <file>")
+	fmt.Println("  repo outline")
 	fmt.Println("  show symbol <id>")
 	fmt.Println("  show file <path>")
 	fmt.Println("")
@@ -379,6 +414,19 @@ func printSearchTextUsage() {
 
 func printOutlineUsage() {
 	fmt.Println("Usage: codesieve outline <file> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+}
+
+func printRepoUsage() {
+	fmt.Println("Usage: codesieve repo outline [flags]")
+	fmt.Println("")
+	fmt.Println("Run 'codesieve repo outline --help' for details.")
+}
+
+func printRepoOutlineUsage() {
+	fmt.Println("Usage: codesieve repo outline [flags]")
 	fmt.Println("")
 	fmt.Println("Flags:")
 	fmt.Println("  --json")
@@ -442,6 +490,21 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 		fmt.Printf("%s (%s)\n", v.FilePath, v.Language)
 		for _, s := range v.Symbols {
 			fmt.Printf("- %s %s [%d-%d]\n", s.Kind, s.Name, s.StartLine, s.EndLine)
+		}
+	case app.RepoOutlineResult:
+		fmt.Printf("%s\n", v.RepoPath)
+		fmt.Printf("files: %d  symbols: %d  indexed_at: %s  stale: %t\n", v.TotalFiles, v.TotalSymbols, v.IndexedAt, v.Stale)
+		fmt.Println("languages:")
+		for k, c := range v.LanguageBreakdown {
+			fmt.Printf("- %s: %d\n", k, c)
+		}
+		fmt.Println("top-level directories:")
+		for k, c := range v.TopLevelDirectoryCounts {
+			fmt.Printf("- %s: %d\n", k, c)
+		}
+		fmt.Println("symbol kinds:")
+		for k, c := range v.SymbolKindCounts {
+			fmt.Printf("- %s: %d\n", k, c)
 		}
 	case app.ShowSymbolResult:
 		fmt.Printf("%s %s %s:%d-%d\n\n%s", v.ID, v.Kind, v.FilePath, v.StartLine, v.EndLine, v.Content)

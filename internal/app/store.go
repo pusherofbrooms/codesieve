@@ -416,11 +416,113 @@ func (s *Store) getSymbol(ctx context.Context, id string) (*symbolRecord, error)
 	return &rec, nil
 }
 
+func (s *Store) repoSummary(ctx context.Context, repoPath string) (RepoOutlineResult, error) {
+	var repoID int64
+	var indexedAt string
+	var ageSeconds int64
+	err := s.db.QueryRowContext(ctx, `SELECT id, indexed_at, CAST(strftime('%s','now') AS INTEGER) - CAST(strftime('%s', indexed_at) AS INTEGER)
+		FROM repos
+		WHERE path = ?`, repoPath).Scan(&repoID, &indexedAt, &ageSeconds)
+	if err == sql.ErrNoRows {
+		return RepoOutlineResult{}, ErrNotFound("FILE_NOT_INDEXED", "repository is not indexed: run 'codesieve index .' first")
+	}
+	if err != nil {
+		return RepoOutlineResult{}, err
+	}
+
+	result := RepoOutlineResult{
+		RepoPath:                repoPath,
+		LanguageBreakdown:       map[string]int{},
+		TopLevelDirectoryCounts: map[string]int{},
+		SymbolKindCounts:        map[string]int{},
+		IndexedAt:               indexedAt,
+		IndexAgeSeconds:         ageSeconds,
+		Stale:                   ageSeconds > 24*60*60,
+	}
+
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM files WHERE repo_id = ?`, repoID).Scan(&result.TotalFiles); err != nil {
+		return RepoOutlineResult{}, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM symbols WHERE repo_id = ?`, repoID).Scan(&result.TotalSymbols); err != nil {
+		return RepoOutlineResult{}, err
+	}
+
+	langRows, err := s.db.QueryContext(ctx, `SELECT COALESCE(language,''), COUNT(*) FROM files WHERE repo_id = ? GROUP BY language`, repoID)
+	if err != nil {
+		return RepoOutlineResult{}, err
+	}
+	defer langRows.Close()
+	for langRows.Next() {
+		var lang string
+		var count int
+		if err := langRows.Scan(&lang, &count); err != nil {
+			return RepoOutlineResult{}, err
+		}
+		if strings.TrimSpace(lang) == "" {
+			lang = "unknown"
+		}
+		result.LanguageBreakdown[lang] = count
+	}
+	if err := langRows.Err(); err != nil {
+		return RepoOutlineResult{}, err
+	}
+
+	pathRows, err := s.db.QueryContext(ctx, `SELECT path FROM files WHERE repo_id = ?`, repoID)
+	if err != nil {
+		return RepoOutlineResult{}, err
+	}
+	defer pathRows.Close()
+	for pathRows.Next() {
+		var path string
+		if err := pathRows.Scan(&path); err != nil {
+			return RepoOutlineResult{}, err
+		}
+		top := topLevelSegment(path)
+		result.TopLevelDirectoryCounts[top]++
+	}
+	if err := pathRows.Err(); err != nil {
+		return RepoOutlineResult{}, err
+	}
+
+	kindRows, err := s.db.QueryContext(ctx, `SELECT kind, COUNT(*) FROM symbols WHERE repo_id = ? GROUP BY kind`, repoID)
+	if err != nil {
+		return RepoOutlineResult{}, err
+	}
+	defer kindRows.Close()
+	for kindRows.Next() {
+		var kind string
+		var count int
+		if err := kindRows.Scan(&kind, &count); err != nil {
+			return RepoOutlineResult{}, err
+		}
+		result.SymbolKindCounts[kind] = count
+	}
+	if err := kindRows.Err(); err != nil {
+		return RepoOutlineResult{}, err
+	}
+
+	return result, nil
+}
+
 func nullable(v string) any {
 	if strings.TrimSpace(v) == "" {
 		return nil
 	}
 	return v
+}
+
+func topLevelSegment(path string) string {
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	if path == "" || path == "." {
+		return "."
+	}
+	if idx := strings.Index(path, "/"); idx >= 0 {
+		if idx == 0 {
+			return "."
+		}
+		return path[:idx]
+	}
+	return "."
 }
 
 func repoAndRel(base, file string) (string, string, error) {

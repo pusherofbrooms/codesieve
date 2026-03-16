@@ -16,6 +16,16 @@ For agent-focused guidance, use:
 - `SKILL.md` (canonical agent instructions)
 - `docs/MANUAL_TESTING.md` (optional real-world smoke tests)
 
+Typical retrieval flow:
+
+```bash
+codesieve index . --json
+codesieve repo outline --json
+codesieve search symbol Login --json
+codesieve outline src/auth.go --json
+codesieve show symbol <id> --json
+```
+
 ## Secret path skipping
 
 `codesieve index` skips common secret-like paths (for example `.env`, key/cert files, and names containing `secret` outside doc extensions) and records `SKIPPED_SECRET` diagnostics.

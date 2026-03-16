@@ -21,25 +21,31 @@ description: Token-efficient local code indexing and retrieval for coding agents
    codesieve index . --json
    ```
 
-2. Search symbols first:
+2. Get a cheap repo map:
+
+   ```bash
+   codesieve repo outline --json
+   ```
+
+3. Search symbols first:
 
    ```bash
    codesieve search symbol "<query>" --json
    ```
 
-3. Inspect structure before large reads:
+4. Inspect structure before large reads:
 
    ```bash
    codesieve outline <path/to/file> --json
    ```
 
-4. Fetch exact symbol source:
+5. Fetch exact symbol source:
 
    ```bash
    codesieve show symbol <symbol-id> --json
    ```
 
-5. Fallback only when needed:
+6. Fallback only when needed:
 
    ```bash
    codesieve search text "<query>" --json
@@ -62,7 +68,8 @@ Use `codesieve --help` to discover uncommon flags and command forms.
 
 Default behavior should be:
 
-- search first
-- outline second
-- exact symbol retrieval third
+- repo outline first
+- search symbols second
+- file outline third
+- exact symbol retrieval fourth
 - text search and file slices last
