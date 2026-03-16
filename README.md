@@ -16,6 +16,18 @@ For agent-focused guidance on how to use `codesieve` effectively, see:
 - `docs/AGENT_USAGE.md`
 - `docs/MANUAL_TESTING.md` (optional real-world smoke tests)
 
+## Secret path skipping
+
+`codesieve index` skips common secret-like paths (for example `.env`, key/cert files, and names containing `secret` outside doc extensions) and records `SKIPPED_SECRET` diagnostics.
+
+You can add custom skip globs with:
+
+```bash
+CODESIEVE_SECRET_PATH_PATTERNS="*.crt,config/private/*" codesieve index . --json
+```
+
+The variable accepts a comma-separated list of glob patterns and is matched case-insensitively against both file basename and relative path.
+
 ## Integration into Claude Code, OpenCode, and Codex
 
 Place the SKILL.md into a path where your coding agent can see it.
