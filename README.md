@@ -27,6 +27,16 @@ codesieve show symbol <id> --verify --json
 codesieve show symbols <id-1> <id-2> --json
 ```
 
+## Supported languages (v1)
+
+- Go
+- Python
+- TypeScript / JavaScript
+
+Go parsing uses the standard library parser. Python and TypeScript/JavaScript use Tree-sitter with vendored grammars for reproducible builds.
+
+For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.md`.
+
 ## Secret path skipping
 
 `codesieve index` skips common secret-like paths (for example `.env`, key/cert files, and names containing `secret` outside doc extensions) and records `SKIPPED_SECRET` diagnostics.
