@@ -157,3 +157,27 @@ EOF
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.data.results | length == 0' >/dev/null
 }
+
+@test "top-level help aliases exit successfully" {
+  run "$TEST_BIN" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"codesieve <command>"* ]]
+
+  run "$TEST_BIN" -h
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"codesieve <command>"* ]]
+
+  run "$TEST_BIN" help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"codesieve <command>"* ]]
+}
+
+@test "subcommand help exits successfully" {
+  run "$TEST_BIN" search --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: codesieve search <symbol|text> <query> [flags]"* ]]
+
+  run "$TEST_BIN" show symbol --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: codesieve show symbol <id> [flags]"* ]]
+}
