@@ -29,8 +29,13 @@
         };
       in {
         packages.default = codesieve;
+        packages.codesieve = codesieve;
 
         apps.default = {
+          type = "app";
+          program = "${codesieve}/bin/codesieve";
+        };
+        apps.codesieve = {
           type = "app";
           program = "${codesieve}/bin/codesieve";
         };

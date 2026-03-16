@@ -49,12 +49,24 @@ go install ./cmd/codesieve
 
 This repo ships a Nix flake.
 
+From GitHub (no local clone required):
+
+```bash
+# Run codesieve directly from GitHub
+nix run github:pusherofbrooms/codesieve#codesieve -- --help
+
+# Build the binary package from GitHub
+nix build github:pusherofbrooms/codesieve#codesieve
+```
+
+From a local clone:
+
 ```bash
 # Build the codesieve binary
-nix build
+nix build .#codesieve
 
 # Run the CLI via the flake app
-nix run
+nix run .#codesieve -- --help
 
 # Open a dev shell with Go, bats, jq, sqlite, clang
 nix develop
@@ -66,6 +78,26 @@ Non-interactive dev-shell commands:
 nix develop --command go test ./...
 nix develop --command bats tests/bats
 nix flake check
+```
+
+Include in your own flake:
+
+```nix
+{
+  inputs.codesieve.url = "github:pusherofbrooms/codesieve";
+
+  outputs = { self, nixpkgs, codesieve, ... }:
+    let
+      system = "x86_64-linux";
+      pkgs = import nixpkgs { inherit system; };
+    in {
+      devShells.${system}.default = pkgs.mkShell {
+        packages = [
+          codesieve.packages.${system}.codesieve
+        ];
+      };
+    };
+}
 ```
 
 ## Common retrieval workflow
