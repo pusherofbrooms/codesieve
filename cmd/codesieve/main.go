@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jorgensen/codesieve/internal/app"
+	"github.com/pusherofbrooms/codesieve/internal/app"
 )
 
 var version = "dev"

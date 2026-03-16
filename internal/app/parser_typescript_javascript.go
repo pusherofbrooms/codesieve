@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
-	tsjavascript "github.com/jorgensen/codesieve/internal/tslang/javascript"
-	tstypescript "github.com/jorgensen/codesieve/internal/tslang/typescript"
+	tsjavascript "github.com/pusherofbrooms/codesieve/internal/tslang/javascript"
+	tstypescript "github.com/pusherofbrooms/codesieve/internal/tslang/typescript"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
 

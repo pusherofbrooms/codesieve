@@ -1,4 +1,4 @@
-module github.com/jorgensen/codesieve
+module github.com/pusherofbrooms/codesieve
 
 go 1.23.0
 

@@ -1,7 +1,7 @@
 package app
 
 import (
-	tspython "github.com/jorgensen/codesieve/internal/tslang/python"
+	tspython "github.com/pusherofbrooms/codesieve/internal/tslang/python"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
 
