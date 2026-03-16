@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: scripts/vendor-grammar <language> <tag-or-sha> [--repo=<git-url>] [--dest=<path>]
+
+Known languages:
+  python      -> https://github.com/tree-sitter/tree-sitter-python.git
+  javascript  -> https://github.com/tree-sitter/tree-sitter-javascript.git
+  typescript  -> https://github.com/tree-sitter/tree-sitter-typescript.git
+  bash        -> https://github.com/tree-sitter/tree-sitter-bash.git
+
+Examples:
+  scripts/vendor-grammar bash v0.25.1
+  scripts/vendor-grammar python v0.23.6
+  scripts/vendor-grammar javascript master --dest=third_party/tree-sitter-javascript
+  scripts/vendor-grammar custom abc123 --repo=https://github.com/org/tree-sitter-custom.git
+EOF
+}
+
+repo_for_language() {
+  case "$1" in
+    python) echo "https://github.com/tree-sitter/tree-sitter-python.git" ;;
+    javascript) echo "https://github.com/tree-sitter/tree-sitter-javascript.git" ;;
+    typescript) echo "https://github.com/tree-sitter/tree-sitter-typescript.git" ;;
+    bash) echo "https://github.com/tree-sitter/tree-sitter-bash.git" ;;
+    *) return 1 ;;
+  esac
+}
+
+if [ "$#" -eq 1 ] && { [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "help" ]; }; then
+  usage
+  exit 0
+fi
+
+if [ "$#" -lt 2 ]; then
+  usage
+  exit 1
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "error: git is required" >&2
+  exit 1
+fi
+
+language="$1"
+ref="$2"
+shift 2
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+cd "$repo_root"
+
+repo_url=""
+dest="third_party/tree-sitter-$language"
+
+for arg in "$@"; do
+  case "$arg" in
+    --repo=*)
+      repo_url="${arg#--repo=}"
+      ;;
+    --dest=*)
+      dest="${arg#--dest=}"
+      ;;
+    --help|-h|help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown flag: $arg" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$repo_url" ]; then
+  if ! repo_url="$(repo_for_language "$language")"; then
+    echo "error: unknown language '$language' (use --repo=... for custom grammars)" >&2
+    exit 1
+  fi
+fi
+
+tmp_dir="$(mktemp -d)"
+cleanup() {
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT
+
+checkout_dir="$tmp_dir/grammar"
+
+echo "Cloning grammar repo..."
+git clone "$repo_url" "$checkout_dir" >/dev/null 2>&1
+
+echo "Checking out $ref..."
+if ! git -C "$checkout_dir" checkout "$ref" >/dev/null 2>&1; then
+  echo "error: failed to checkout ref '$ref' from $repo_url" >&2
+  exit 1
+fi
+
+commit="$(git -C "$checkout_dir" rev-parse HEAD)"
+
+required=(
+  "tree-sitter.json"
+  "src/parser.c"
+  "LICENSE"
+)
+for rel in "${required[@]}"; do
+  if [ ! -f "$checkout_dir/$rel" ]; then
+    echo "error: missing required file in grammar checkout: $rel" >&2
+    exit 1
+  fi
+done
+
+# scanner.c is optional for some grammars.
+
+echo "Vendoring into $dest"
+rm -rf "$dest"
+mkdir -p "$dest"
+cp -a "$checkout_dir"/. "$dest"/
+rm -rf "$dest/.git"
+
+cat >"$dest/.codesieve-vendor-meta" <<EOF
+repository=$repo_url
+requested_ref=$ref
+resolved_commit=$commit
+vendored_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+script=scripts/vendor-grammar
+EOF
+
+echo "Done."
+echo "- language: $language"
+echo "- destination: $dest"
+echo "- repository: $repo_url"
+echo "- commit: $commit"

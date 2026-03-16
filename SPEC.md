@@ -427,6 +427,31 @@ Language support only needs to cover:
 
 More languages can be added later.
 
+### Language extension ergonomics
+
+To keep language additions cheap and consistent, the implementation should include a small extension pattern:
+
+1. **Per-language parser packages and registration**
+   - Keep a thin central registry.
+   - Let each language expose a small spec (language name, extensions, parser function).
+   - Avoid one large monolithic parser registration file over time.
+
+2. **Shared parser contract**
+   - Use one consistent parser function contract across languages.
+   - Keep normalization and symbol finalization in shared code instead of per-language duplication.
+
+3. **Reusable Tree-sitter extraction helpers**
+   - Provide shared traversal/extraction helpers for common node patterns (named declarations, container/member relationships, signature extraction).
+   - Keep language files focused on language-specific mapping, not repeated tree walking boilerplate.
+
+4. **Standard fixture convention per language**
+   - Maintain a consistent fixture layout for language test data.
+   - Require the same baseline assertions for each new language: indexing counts, outline hierarchy quality, and exact `show symbol` source retrieval.
+
+5. **Automated vendoring workflow for grammar sources**
+   - Provide a repo script to vendor a grammar from an official upstream repository at a pinned tag/commit.
+   - Record source repository and pinned revision in vendored metadata for auditability and reproducible upgrades.
+
 ### Next language priorities (post-v1)
 
 Recommended order for near-term additions, balancing team usage, parser availability, and implementation risk:
