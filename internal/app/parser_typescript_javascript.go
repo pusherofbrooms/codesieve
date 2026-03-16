@@ -68,10 +68,13 @@ func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbo
 				if nameNode != nil {
 					name := nodeText(nameNode, content)
 					qualified := name
+					parent := ""
 					if className != "" {
 						qualified = className + "." + name
+						parent = className
 					}
 					sym := makeSymbol(content, node, name, qualified, "method")
+					sym.ParentID = parent
 					sym.Signature = signatureFromNode(node, content)
 					symbols = append(symbols, sym)
 				}

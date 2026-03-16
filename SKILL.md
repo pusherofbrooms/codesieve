@@ -33,7 +33,7 @@ description: Token-efficient local code indexing and retrieval for coding agents
    codesieve search symbol "<query>" --json
    ```
 
-4. Inspect structure before large reads:
+4. Inspect structure before large reads (hierarchical symbols with nested members):
 
    ```bash
    codesieve outline <path/to/file> --json

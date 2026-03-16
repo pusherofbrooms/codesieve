@@ -157,14 +157,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			parsed = nil
 			detectedLang = lang
 		}
-		for i := range parsed {
-			parsed[i].Language = detectedLang
-			parsed[i].FilePath = rel
-			parsed[i].ID = symbolID(repoPath, rel, parsed[i])
-			if parsed[i].QualifiedName == "" {
-				parsed[i].QualifiedName = parsed[i].Name
-			}
-		}
+		parsed = finalizeSymbols(repoPath, rel, detectedLang, parsed)
 		pending = append(pending, FileIndexUpdate{
 			RelPath:     rel,
 			Language:    detectedLang,
@@ -258,10 +251,12 @@ func (s *Service) Outline(ctx context.Context, path string) (OutlineResult, erro
 	if err != nil {
 		return OutlineResult{}, err
 	}
+	parsed = finalizeSymbols(repoPath, relPath, lang, parsed)
+	flat := make([]OutlineSymbol, 0, len(parsed))
 	for _, sym := range parsed {
-		sym.ID = symbolID(repoPath, relPath, sym)
-		result.Symbols = append(result.Symbols, OutlineSymbol{ID: sym.ID, Name: sym.Name, Kind: sym.Kind, ParentID: sym.ParentID, StartLine: sym.StartLine, EndLine: sym.EndLine, Signature: sym.Signature, Language: lang})
+		flat = append(flat, OutlineSymbol{ID: sym.ID, Name: sym.Name, Kind: sym.Kind, ParentID: sym.ParentID, StartLine: sym.StartLine, EndLine: sym.EndLine, Signature: sym.Signature, Language: lang})
 	}
+	result.Symbols = buildOutlineHierarchy(flat)
 	_ = ctx
 	return result, nil
 }
@@ -314,14 +309,9 @@ func verifyStoredSymbol(rec *symbolRecord, fullPath string, content []byte) *Sym
 	if err != nil {
 		return &SymbolVerification{Verified: false, Reason: "unable to parse file for verification"}
 	}
+	parsed = finalizeSymbols(rec.RepoPath, rec.FilePath, rec.Language, parsed)
 	for i := range parsed {
-		parsed[i].Language = rec.Language
-		parsed[i].FilePath = rec.FilePath
-		if parsed[i].QualifiedName == "" {
-			parsed[i].QualifiedName = parsed[i].Name
-		}
-		candidateID := symbolID(rec.RepoPath, rec.FilePath, parsed[i])
-		if candidateID == rec.ID {
+		if parsed[i].ID == rec.ID {
 			return &SymbolVerification{Verified: true}
 		}
 	}
@@ -418,6 +408,79 @@ func isBinary(content []byte) bool {
 func sha256hex(content []byte) string {
 	sum := sha256.Sum256(content)
 	return hex.EncodeToString(sum[:])
+}
+
+func finalizeSymbols(repoPath, relPath, language string, symbols []Symbol) []Symbol {
+	byQualified := make(map[string]string, len(symbols))
+	byName := make(map[string]string, len(symbols))
+	for i := range symbols {
+		symbols[i].Language = language
+		symbols[i].FilePath = relPath
+		if symbols[i].QualifiedName == "" {
+			symbols[i].QualifiedName = symbols[i].Name
+		}
+		symbols[i].ID = symbolID(repoPath, relPath, symbols[i])
+		if symbols[i].QualifiedName != "" {
+			if _, ok := byQualified[symbols[i].QualifiedName]; !ok {
+				byQualified[symbols[i].QualifiedName] = symbols[i].ID
+			}
+		}
+		if symbols[i].Name != "" {
+			if _, ok := byName[symbols[i].Name]; !ok {
+				byName[symbols[i].Name] = symbols[i].ID
+			}
+		}
+	}
+	for i := range symbols {
+		if symbols[i].ParentID == "" {
+			continue
+		}
+		if id, ok := byQualified[symbols[i].ParentID]; ok {
+			symbols[i].ParentID = id
+			continue
+		}
+		if id, ok := byName[symbols[i].ParentID]; ok {
+			symbols[i].ParentID = id
+			continue
+		}
+		symbols[i].ParentID = ""
+	}
+	return symbols
+}
+
+func buildOutlineHierarchy(flat []OutlineSymbol) []OutlineSymbol {
+	if len(flat) == 0 {
+		return nil
+	}
+	byID := make(map[string]OutlineSymbol, len(flat))
+	children := make(map[string][]string, len(flat))
+	roots := make([]string, 0, len(flat))
+	for _, sym := range flat {
+		sym.Children = nil
+		byID[sym.ID] = sym
+	}
+	for _, sym := range flat {
+		if sym.ParentID != "" {
+			if _, ok := byID[sym.ParentID]; ok {
+				children[sym.ParentID] = append(children[sym.ParentID], sym.ID)
+				continue
+			}
+		}
+		roots = append(roots, sym.ID)
+	}
+	var expand func(id string) OutlineSymbol
+	expand = func(id string) OutlineSymbol {
+		node := byID[id]
+		for _, childID := range children[id] {
+			node.Children = append(node.Children, expand(childID))
+		}
+		return node
+	}
+	out := make([]OutlineSymbol, 0, len(roots))
+	for _, id := range roots {
+		out = append(out, expand(id))
+	}
+	return out
 }
 
 func symbolID(repoPath, relPath string, sym Symbol) string {

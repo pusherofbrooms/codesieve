@@ -50,8 +50,9 @@ setup() {
   pushd "$FIXTURE" >/dev/null
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" outline src/auth.go --json
   [ "$status" -eq 0 ]
-  symbol_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Login") | .id')"
+  symbol_id="$(echo "$output" | jq -r 'first(.. | objects | select(.name? == "Login" and .id? != null) | .id)')"
   [ -n "$symbol_id" ]
+  echo "$output" | jq -e '.data.symbols[] | select(.name == "AuthService") | .children[] | select(.name == "Logout" and .kind == "method")' >/dev/null
 
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show symbol "$symbol_id" --json
   popd >/dev/null
@@ -69,8 +70,8 @@ setup() {
   pushd "$FIXTURE" >/dev/null
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" outline src/auth.go --json
   [ "$status" -eq 0 ]
-  login_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Login") | .id')"
-  logout_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Logout") | .id')"
+  login_id="$(echo "$output" | jq -r 'first(.. | objects | select(.name? == "Login" and .id? != null) | .id)')"
+  logout_id="$(echo "$output" | jq -r 'first(.. | objects | select(.name? == "Logout" and .id? != null) | .id)')"
   [ -n "$login_id" ]
   [ -n "$logout_id" ]
 
@@ -94,7 +95,7 @@ setup() {
   pushd "$worktree" >/dev/null
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" outline src/auth.go --json
   [ "$status" -eq 0 ]
-  symbol_id="$(echo "$output" | jq -r '.data.symbols[] | select(.name == "Login") | .id')"
+  symbol_id="$(echo "$output" | jq -r 'first(.. | objects | select(.name? == "Login" and .id? != null) | .id)')"
   [ -n "$symbol_id" ]
 
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show symbol "$symbol_id" --verify --json

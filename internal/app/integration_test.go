@@ -542,6 +542,58 @@ func TestIndexSkipsSecretFiles(t *testing.T) {
 	}
 }
 
+func TestOutlineReturnsHierarchicalSymbols(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := fixtureRepo(t)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(repoPath); err != nil {
+		t.Fatalf("Chdir(%s): %v", repoPath, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	result, err := svc.Outline(ctx, "src/auth.go")
+	if err != nil {
+		t.Fatalf("Outline error: %v", err)
+	}
+
+	var authType OutlineSymbol
+	foundType := false
+	for _, sym := range result.Symbols {
+		if sym.Name == "AuthService" && sym.Kind == "struct" {
+			authType = sym
+			foundType = true
+			break
+		}
+	}
+	if !foundType {
+		t.Fatalf("expected top-level AuthService struct, got %+v", result.Symbols)
+	}
+
+	foundLogoutChild := false
+	for _, child := range authType.Children {
+		if child.Name == "Logout" && child.Kind == "method" {
+			foundLogoutChild = true
+			if child.ParentID != authType.ID {
+				t.Fatalf("expected Logout parent_id=%q, got %q", authType.ID, child.ParentID)
+			}
+		}
+	}
+	if !foundLogoutChild {
+		t.Fatalf("expected Logout nested under AuthService, got %+v", authType.Children)
+	}
+
+	for _, sym := range result.Symbols {
+		if sym.Name == "Logout" {
+			t.Fatalf("expected Logout to be nested, found top-level symbol: %+v", sym)
+		}
+	}
+}
+
 func TestRepoOutlineSummarizesIndexedRepo(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)

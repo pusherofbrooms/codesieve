@@ -21,16 +21,19 @@ func parseGo(path string, content []byte) ([]Symbol, error) {
 			end := fset.Position(node.End())
 			kind := "function"
 			qualified := node.Name.Name
+			parent := ""
 			sig := renderGoFuncSignature(node)
 			if node.Recv != nil && len(node.Recv.List) > 0 {
 				kind = "method"
 				recv := recvType(node.Recv.List[0].Type)
 				qualified = recv + "." + node.Name.Name
+				parent = recv
 			}
 			symbols = append(symbols, Symbol{
 				Name:          node.Name.Name,
 				QualifiedName: qualified,
 				Kind:          kind,
+				ParentID:      parent,
 				Signature:     sig,
 				StartLine:     start.Line,
 				EndLine:       end.Line,

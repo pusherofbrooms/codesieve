@@ -520,6 +520,16 @@ func printShowFileUsage() {
 	fmt.Println("  --end-line=<n>")
 }
 
+func printOutlineSymbols(symbols []app.OutlineSymbol, depth int) {
+	indent := strings.Repeat("  ", depth)
+	for _, s := range symbols {
+		fmt.Printf("%s- %s %s [%d-%d]\n", indent, s.Kind, s.Name, s.StartLine, s.EndLine)
+		if len(s.Children) > 0 {
+			printOutlineSymbols(s.Children, depth+1)
+		}
+	}
+}
+
 func printSuccess(start time.Time, jsonMode bool, data any) int {
 	if jsonMode {
 		payload := map[string]any{
@@ -551,9 +561,7 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 		}
 	case app.OutlineResult:
 		fmt.Printf("%s (%s)\n", v.FilePath, v.Language)
-		for _, s := range v.Symbols {
-			fmt.Printf("- %s %s [%d-%d]\n", s.Kind, s.Name, s.StartLine, s.EndLine)
-		}
+		printOutlineSymbols(v.Symbols, 0)
 	case app.RepoOutlineResult:
 		fmt.Printf("%s\n", v.RepoPath)
 		fmt.Printf("files: %d  symbols: %d  indexed_at: %s  stale: %t\n", v.TotalFiles, v.TotalSymbols, v.IndexedAt, v.Stale)

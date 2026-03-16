@@ -36,11 +36,14 @@ func parsePythonTreeSitter(content []byte) ([]Symbol, error) {
 					name := nodeText(nameNode, content)
 					kind := "function"
 					qualified := name
+					parent := ""
 					if container != "" {
 						kind = "method"
 						qualified = container + "." + name
+						parent = container
 					}
 					sym := makeSymbol(content, node, name, qualified, kind)
+					sym.ParentID = parent
 					sym.Signature = pythonSignature(node, content)
 					symbols = append(symbols, sym)
 					walk(node.ChildByFieldName("body"), "")

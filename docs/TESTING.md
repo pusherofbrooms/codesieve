@@ -93,7 +93,7 @@ Test for compactness, not just correctness.
 
 Assert that:
 
-- outlines stay concise
+- outlines stay concise and preserve hierarchy (top-level plus nested symbols)
 - search results do not include unnecessary payload
 - symbol retrieval returns exact source
 - file slices respect requested ranges

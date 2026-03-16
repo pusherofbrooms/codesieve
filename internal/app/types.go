@@ -100,14 +100,15 @@ type TextSearchResult struct {
 }
 
 type OutlineSymbol struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Kind      string `json:"kind"`
-	ParentID  string `json:"parent_id,omitempty"`
-	StartLine int    `json:"start_line"`
-	EndLine   int    `json:"end_line"`
-	Signature string `json:"signature,omitempty"`
-	Language  string `json:"language,omitempty"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Kind      string          `json:"kind"`
+	ParentID  string          `json:"parent_id,omitempty"`
+	StartLine int             `json:"start_line"`
+	EndLine   int             `json:"end_line"`
+	Signature string          `json:"signature,omitempty"`
+	Language  string          `json:"language,omitempty"`
+	Children  []OutlineSymbol `json:"children,omitempty"`
 }
 
 type OutlineResult struct {

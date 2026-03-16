@@ -16,7 +16,7 @@ For agent-focused guidance, use:
 - `SKILL.md` (canonical agent instructions)
 - `docs/TESTING.md` (automated testing strategy + optional real-world smoke tests)
 
-Typical retrieval flow:
+Typical retrieval flow (with `outline` returning hierarchical symbols including nested methods/functions):
 
 ```bash
 codesieve index . --json
