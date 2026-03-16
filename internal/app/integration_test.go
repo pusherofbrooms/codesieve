@@ -301,6 +301,16 @@ func TestDiagnosticsPersistAndClear(t *testing.T) {
 		t.Fatalf("Abs(workdir): %v", err)
 	}
 
+	// Ensure there is an ignored path in the copied fixture.
+	// The repository fixture intentionally keeps ignored files out of version control,
+	// so create one here to make this test deterministic in clean source builds.
+	if err := os.MkdirAll(filepath.Join(workdir, "ignored"), 0o755); err != nil {
+		t.Fatalf("MkdirAll ignored: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, "ignored", "tmp.go"), []byte("package ignored\n\nfunc Hidden() {}\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile ignored/tmp.go: %v", err)
+	}
+
 	// First index with .gitignore present -> expect SKIPPED_IGNORED diagnostics.
 	if _, err := svc.Index(ctx, workdir, IndexOptions{}); err != nil {
 		t.Fatalf("first Index error: %v", err)
