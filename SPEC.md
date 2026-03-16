@@ -501,7 +501,6 @@ Reasons:
 
 - simple deployment
 - good point lookups
-- supports FTS
 - easier incremental updates than flat files
 - good fit for a local CLI
 
@@ -521,7 +520,6 @@ Optional later:
 - `symbols`
 - `index_runs`
 - `diagnostics`
-- FTS tables for symbol/text search
 
 ### Minimum file fields
 

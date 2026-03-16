@@ -38,6 +38,7 @@ Note: a thin `pi` extension is explicitly allowed as a companion deliverable and
 - impact analysis beyond lightweight importer lookup
 - rename tracking
 - advanced stable ID aliasing
+- SQLite FTS acceleration for text search, only with explicit case-sensitivity/regex accuracy guardrails
 - embeddings or rerankers
 - AI-generated summaries
 
