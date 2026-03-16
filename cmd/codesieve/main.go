@@ -42,6 +42,9 @@ func run() int {
 
 	start := time.Now()
 	switch args[0] {
+	case "help", "--help", "-h":
+		printUsage()
+		return 0
 	case "version", "--version", "-v":
 		fmt.Println(version)
 		return 0
@@ -63,11 +66,19 @@ func handleIndex(ctx context.Context, svc *app.Service, args []string, start tim
 	if len(args) == 0 {
 		return printError(start, false, app.ErrInvalidArgs("missing path"))
 	}
+	if isHelpArg(args[0]) {
+		printIndexUsage()
+		return 0
+	}
+
 	path := args[0]
 	opt := app.IndexOptions{MaxFiles: 10000, MaxSize: 1024 * 1024}
 	jsonMode := false
 	for _, arg := range args[1:] {
 		switch {
+		case isHelpArg(arg):
+			printIndexUsage()
+			return 0
 		case arg == "--json":
 			jsonMode = true
 		case arg == "--force":
@@ -99,9 +110,31 @@ func handleIndex(ctx context.Context, svc *app.Service, args []string, start tim
 }
 
 func handleSearch(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
+	if len(args) == 0 {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
+	}
+	if isHelpArg(args[0]) {
+		printSearchUsage()
+		return 0
+	}
+
+	subcommand := args[0]
+	if subcommand != "symbol" && subcommand != "text" {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
+	}
+
 	if len(args) < 2 {
 		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
 	}
+	if isHelpArg(args[1]) {
+		if subcommand == "symbol" {
+			printSearchSymbolUsage()
+		} else {
+			printSearchTextUsage()
+		}
+		return 0
+	}
+
 	jsonMode := false
 	limit := 20
 	lang := ""
@@ -111,6 +144,13 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 	query := args[1]
 	for _, arg := range args[2:] {
 		switch {
+		case isHelpArg(arg):
+			if subcommand == "symbol" {
+				printSearchSymbolUsage()
+			} else {
+				printSearchTextUsage()
+			}
+			return 0
 		case arg == "--json":
 			jsonMode = true
 		case strings.HasPrefix(arg, "--limit="):
@@ -132,7 +172,7 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 		}
 	}
 
-	switch args[0] {
+	switch subcommand {
 	case "symbol":
 		result, err := svc.SearchSymbols(ctx, app.SearchSymbolOptions{Query: query, Limit: limit, Lang: lang, Kind: kind, PathSubstr: pathSubstr, CaseSensitive: caseSensitive})
 		if err != nil {
@@ -154,8 +194,17 @@ func handleOutline(ctx context.Context, svc *app.Service, args []string, start t
 	if len(args) == 0 {
 		return printError(start, false, app.ErrInvalidArgs("missing file path"))
 	}
+	if isHelpArg(args[0]) {
+		printOutlineUsage()
+		return 0
+	}
+
 	jsonMode := false
 	for _, arg := range args[1:] {
+		if isHelpArg(arg) {
+			printOutlineUsage()
+			return 0
+		}
 		if arg == "--json" {
 			jsonMode = true
 		} else {
@@ -170,9 +219,31 @@ func handleOutline(ctx context.Context, svc *app.Service, args []string, start t
 }
 
 func handleShow(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
+	if len(args) == 0 {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
+	}
+	if isHelpArg(args[0]) {
+		printShowUsage()
+		return 0
+	}
+
+	subcommand := args[0]
+	if subcommand != "symbol" && subcommand != "file" {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
+	}
+
 	if len(args) < 2 {
 		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|file> <target>"))
 	}
+	if isHelpArg(args[1]) {
+		if subcommand == "symbol" {
+			printShowSymbolUsage()
+		} else {
+			printShowFileUsage()
+		}
+		return 0
+	}
+
 	jsonMode := false
 	contentOnly := false
 	contextLines := 0
@@ -180,6 +251,13 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 	endLine := 0
 	for _, arg := range args[2:] {
 		switch {
+		case isHelpArg(arg):
+			if subcommand == "symbol" {
+				printShowSymbolUsage()
+			} else {
+				printShowFileUsage()
+			}
+			return 0
 		case arg == "--json":
 			jsonMode = true
 		case arg == "--content-only":
@@ -207,7 +285,7 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 		}
 	}
 
-	switch args[0] {
+	switch subcommand {
 	case "symbol":
 		result, err := svc.ShowSymbol(ctx, args[1], contextLines)
 		if err != nil {
@@ -239,16 +317,96 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 	}
 }
 
+func isHelpArg(arg string) bool {
+	return arg == "help" || arg == "--help" || arg == "-h"
+}
+
 func printUsage() {
 	fmt.Println("codesieve <command>")
 	fmt.Println("")
 	fmt.Println("Commands:")
+	fmt.Println("  help")
+	fmt.Println("  version")
 	fmt.Println("  index <path>")
 	fmt.Println("  search symbol <query>")
 	fmt.Println("  search text <query>")
 	fmt.Println("  outline <file>")
 	fmt.Println("  show symbol <id>")
 	fmt.Println("  show file <path>")
+	fmt.Println("")
+	fmt.Println("Run 'codesieve <command> --help' for command-specific help.")
+}
+
+func printIndexUsage() {
+	fmt.Println("Usage: codesieve index <path> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+	fmt.Println("  --force")
+	fmt.Println("  --no-gitignore")
+	fmt.Println("  --max-files=<n>")
+	fmt.Println("  --max-size=<bytes>")
+}
+
+func printSearchUsage() {
+	fmt.Println("Usage: codesieve search <symbol|text> <query> [flags]")
+	fmt.Println("")
+	fmt.Println("Run 'codesieve search symbol --help' or 'codesieve search text --help' for details.")
+}
+
+func printSearchSymbolUsage() {
+	fmt.Println("Usage: codesieve search symbol <query> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+	fmt.Println("  --limit=<n>")
+	fmt.Println("  --lang=<language>")
+	fmt.Println("  --kind=<kind>")
+	fmt.Println("  --path-substr=<substring>")
+	fmt.Println("  --case-sensitive")
+}
+
+func printSearchTextUsage() {
+	fmt.Println("Usage: codesieve search text <query> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+	fmt.Println("  --limit=<n>")
+	fmt.Println("  --lang=<language>")
+	fmt.Println("  --path-substr=<substring>")
+	fmt.Println("  --case-sensitive")
+}
+
+func printOutlineUsage() {
+	fmt.Println("Usage: codesieve outline <file> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+}
+
+func printShowUsage() {
+	fmt.Println("Usage: codesieve show <symbol|file> <target> [flags]")
+	fmt.Println("")
+	fmt.Println("Run 'codesieve show symbol --help' or 'codesieve show file --help' for details.")
+}
+
+func printShowSymbolUsage() {
+	fmt.Println("Usage: codesieve show symbol <id> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+	fmt.Println("  --content-only")
+	fmt.Println("  --context=<n>")
+}
+
+func printShowFileUsage() {
+	fmt.Println("Usage: codesieve show file <path> [flags]")
+	fmt.Println("")
+	fmt.Println("Flags:")
+	fmt.Println("  --json")
+	fmt.Println("  --content-only")
+	fmt.Println("  --start-line=<n>")
+	fmt.Println("  --end-line=<n>")
 }
 
 func printSuccess(start time.Time, jsonMode bool, data any) int {
