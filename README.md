@@ -14,7 +14,7 @@ codesieve --help
 For agent-focused guidance, use:
 
 - `SKILL.md` (canonical agent instructions)
-- `docs/MANUAL_TESTING.md` (optional real-world smoke tests)
+- `docs/TESTING.md` (automated testing strategy + optional real-world smoke tests)
 
 Typical retrieval flow:
 

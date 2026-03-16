@@ -132,6 +132,39 @@ Use:
 - `nix flake check` for project checks
 - `nix develop --command ...` for devShell tools
 
+## Optional manual smoke test (real-world repo)
+
+Manual smoke tests are optional and are **not** wired into `nix flake check`.
+
+### Grafana smoke test
+
+`grafana/grafana` is a good mixed Go + TypeScript/JavaScript repo for exercising indexing, parser behavior, and query quality.
+
+1. Clone Grafana outside this repo:
+
+   ```bash
+   git clone --depth 1 https://github.com/grafana/grafana.git ~/src/grafana
+   ```
+
+2. From the `codesieve` repo root, run:
+
+   ```bash
+   scripts/smoke-test-with-grafana ~/src/grafana
+   ```
+
+   The script builds (or uses `$CODESIEVE_BIN`), runs indexing, prints a short summary, and writes JSON outputs inside the Grafana checkout:
+
+   - `.codesieve-grafana-index.json`
+   - `.codesieve-grafana-search-login-go.json`
+   - `.codesieve-grafana-search-dashboard-ts.json`
+   - `.codesieve-grafana-search-auth-header.json`
+
+3. Inspect:
+
+   - indexing runtime and counters (`duration_ms`, `files_indexed`, `symbols_extracted`)
+   - DB size at `grafana/.codesieve-grafana.db`
+   - whether top symbol/text hits are plausible
+
 ## Bottom line
 
 Test the engine first, the CLI second, and the agent workflow third.
