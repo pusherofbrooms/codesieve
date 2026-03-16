@@ -2,21 +2,75 @@
 
 `codesieve` is a local code indexer that lets agents fetch precise symbols, outlines, and file slices.
 
-
-## Usage
-
-For a brief overview of commands and flags, run:
+## Quickstart
 
 ```bash
-codesieve --help
+# 1) Build and run once (repo root)
+go build -o codesieve ./cmd/codesieve
+
+# 2) Index a repository
+./codesieve index . --json
+
+# 3) Explore symbols
+./codesieve repo outline --json
+./codesieve search symbol Login --json
+./codesieve show symbol <id> --verify --json
 ```
 
-For agent-focused guidance, use:
+For command/flag reference:
 
-- `SKILL.md` (canonical agent instructions)
-- `docs/TESTING.md` (automated testing strategy + optional real-world smoke tests)
+```bash
+./codesieve --help
+```
 
-Typical retrieval flow (with `outline` returning hierarchical symbols including nested methods/functions):
+## Install
+
+### Go install (remote)
+
+Once the module path and upstream repository are aligned, install from GitHub:
+
+```bash
+go install github.com/pusherofbrooms/codesieve/cmd/codesieve@latest
+```
+
+This places `codesieve` in `$GOBIN` (or `$GOPATH/bin` if `GOBIN` is unset).
+
+### Local build (this repo)
+
+```bash
+# From the repo root
+go build -o codesieve ./cmd/codesieve
+
+# Or install into your Go bin dir (GOBIN/GOPATH/bin)
+go install ./cmd/codesieve
+```
+
+### Build/run with Nix
+
+This repo ships a Nix flake.
+
+```bash
+# Build the codesieve binary
+nix build
+
+# Run the CLI via the flake app
+nix run
+
+# Open a dev shell with Go, bats, jq, sqlite, clang
+nix develop
+```
+
+Non-interactive dev-shell commands:
+
+```bash
+nix develop --command go test ./...
+nix develop --command bats tests/bats
+nix flake check
+```
+
+## Common retrieval workflow
+
+`outline` returns hierarchical symbols, including nested methods/functions.
 
 ```bash
 codesieve index . --json
@@ -49,65 +103,11 @@ CODESIEVE_SECRET_PATH_PATTERNS="*.crt,config/private/*" codesieve index . --json
 
 The variable accepts a comma-separated list of glob patterns and is matched case-insensitively against both file basename and relative path.
 
-## Integration into Claude Code, OpenCode, and Codex
+## Agent integration docs
 
-Place the SKILL.md into a path where your coding agent can see it.
+For agent-focused guidance:
 
-## Build and Install
+- `SKILL.md` (canonical agent instructions)
+- `docs/TESTING.md` (automated testing strategy + optional real-world smoke tests)
 
-If you have a recent Go toolchain and a C compiler installed (for Tree-sitter's C code), you can build directly with Go.
-
-### Remote install via `go install`
-
-Once the module path and upstream repository are aligned, you will be able to install
-`codesieve` directly from GitHub:
-
-```bash
-go install github.com/pusherofbrooms/codesieve/cmd/codesieve@latest
-```
-
-This builds the CLI and places the `codesieve` binary in `$GOBIN` (or `$GOPATH/bin` if
-`GOBIN` is not set). Ensure that directory is on your `PATH` so agents and shells can run
-`codesieve` without a local build.
-
-### Local build from this repo
-
-```bash
-# From the repo root
-go build -o codesieve ./cmd/codesieve
-
-# Or install into your Go bin dir (GOBIN/GOPATH/bin)
-go install ./cmd/codesieve
-```
-
-Then run:
-
-```bash
-./codesieve --help
-```
-
-## Build and run (Nix)
-
-This repo ships a Nix flake.
-
-Common commands:
-
-```bash
-# Build the codesieve binary
-nix build
-
-# Run the CLI via the flake app
-nix run
-
-# Open a dev shell with Go, bats, jq, sqlite, clang
-nix develop
-```
-
-You can also run tools inside the dev shell non-interactively:
-
-```bash
-nix develop --command go test ./...
-nix develop --command bats tests/bats
-nix flake check
-```
-
+To integrate into Claude Code, OpenCode, or Codex, place `SKILL.md` somewhere your coding agent can read.
