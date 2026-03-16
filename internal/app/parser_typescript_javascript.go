@@ -99,8 +99,14 @@ func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbo
 					if nameNode == nil || valueNode == nil {
 						continue
 					}
+					emitAsFunction := false
 					switch valueNode.Kind() {
 					case "arrow_function", "function_expression", "generator_function":
+						emitAsFunction = true
+					case "call_expression":
+						emitAsFunction = callExpressionHasFunctionArg(valueNode)
+					}
+					if emitAsFunction {
 						name := nodeText(nameNode, content)
 						sym := makeSymbol(content, decl, name, name, "function")
 						sym.Signature = signatureFromNode(decl, content)
@@ -117,4 +123,36 @@ func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbo
 		sortSymbols(symbols)
 		return symbols
 	})
+}
+
+func callExpressionHasFunctionArg(node *treesitter.Node) bool {
+	if node == nil || node.Kind() != "call_expression" {
+		return false
+	}
+	args := node.ChildByFieldName("arguments")
+	if args == nil {
+		return false
+	}
+	for i := uint(0); i < args.NamedChildCount(); i++ {
+		arg := args.NamedChild(i)
+		if arg == nil {
+			continue
+		}
+		switch arg.Kind() {
+		case "arrow_function", "function_expression", "generator_function":
+			return true
+		case "parenthesized_expression":
+			for j := uint(0); j < arg.NamedChildCount(); j++ {
+				inner := arg.NamedChild(j)
+				if inner == nil {
+					continue
+				}
+				switch inner.Kind() {
+				case "arrow_function", "function_expression", "generator_function":
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

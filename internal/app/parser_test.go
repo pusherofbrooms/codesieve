@@ -65,6 +65,7 @@ export class Client {
 }
 
 export const fetchUser = (id: string) => id
+export const routes = lazy(() => createRoutes())
 `)
 	syms, lang, err := ParseSymbols("client.ts", src)
 	if err != nil {
@@ -73,11 +74,12 @@ export const fetchUser = (id: string) => id
 	if lang != "typescript" {
 		t.Fatalf("lang = %q", lang)
 	}
-	if len(syms) < 4 {
-		t.Fatalf("expected at least 4 symbols, got %d", len(syms))
+	if len(syms) < 5 {
+		t.Fatalf("expected at least 5 symbols, got %d", len(syms))
 	}
 	foundMethod := false
 	foundArrow := false
+	foundWrappedArrow := false
 	foundInterface := false
 	for _, sym := range syms {
 		switch {
@@ -85,11 +87,13 @@ export const fetchUser = (id: string) => id
 			foundMethod = true
 		case sym.Name == "fetchUser" && sym.Kind == "function":
 			foundArrow = true
+		case sym.Name == "routes" && sym.Kind == "function":
+			foundWrappedArrow = true
 		case sym.Name == "User" && sym.Kind == "interface":
 			foundInterface = true
 		}
 	}
-	if !foundMethod || !foundArrow || !foundInterface {
+	if !foundMethod || !foundArrow || !foundWrappedArrow || !foundInterface {
 		t.Fatalf("missing expected symbols: %+v", syms)
 	}
 }
