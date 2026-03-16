@@ -39,12 +39,17 @@ Local wrappers live under:
 
 Application parser code lives under `internal/parser/`.
 
+Shared Tree-sitter extraction helpers (for common traversal and symbol-shape patterns) live under `internal/parser/core/`.
+
+For TypeScript and JavaScript, shared extraction logic lives under `internal/parser/languages/tsjs/` to avoid duplicated walkers.
+
 ## Adding a new Tree-sitter-backed language
 
 1. Pick the official upstream grammar repository and version.
 2. Vendor the required grammar sources under `third_party/`.
 3. Add a local wrapper in `internal/tslang/<language>/` that exposes a small `Language()` function or variant functions.
 4. Implement symbol extraction in `internal/parser/languages/<language>/`.
+   - Reuse helpers in `internal/parser/core/` for node traversal, signature extraction, and container/member symbol shaping where applicable.
 5. Register the language in `internal/parser/registry.go`:
    - language name
    - supported file extensions

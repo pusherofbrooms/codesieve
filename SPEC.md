@@ -440,7 +440,7 @@ To keep language additions cheap and consistent, the implementation should inclu
    - Use one consistent parser function contract across languages.
    - Keep normalization and symbol finalization in shared code instead of per-language duplication.
 
-3. **Reusable Tree-sitter extraction helpers**
+3. **Reusable Tree-sitter extraction helpers** *(done)*
    - Provide shared traversal/extraction helpers for common node patterns (named declarations, container/member relationships, signature extraction).
    - Keep language files focused on language-specific mapping, not repeated tree walking boilerplate.
 

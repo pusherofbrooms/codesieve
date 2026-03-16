@@ -94,6 +94,64 @@ func NodeText(node *treesitter.Node, content []byte) string {
 	return strings.TrimSpace(node.Utf8Text(content))
 }
 
+func WalkNamedChildren(node *treesitter.Node, walk func(child *treesitter.Node)) {
+	if node == nil {
+		return
+	}
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		walk(node.NamedChild(i))
+	}
+}
+
+func QualifiedNameFromContainer(container, name string) (qualified, parent string) {
+	qualified = name
+	if strings.TrimSpace(container) == "" {
+		return qualified, ""
+	}
+	return container + "." + name, container
+}
+
+func IsFunctionLikeValueNode(node *treesitter.Node) bool {
+	if node == nil {
+		return false
+	}
+	switch node.Kind() {
+	case "arrow_function", "function_expression", "generator_function":
+		return true
+	case "call_expression":
+		return callExpressionHasFunctionArg(node)
+	default:
+		return false
+	}
+}
+
+func callExpressionHasFunctionArg(node *treesitter.Node) bool {
+	if node == nil || node.Kind() != "call_expression" {
+		return false
+	}
+	args := node.ChildByFieldName("arguments")
+	if args == nil {
+		return false
+	}
+	for i := uint(0); i < args.NamedChildCount(); i++ {
+		arg := args.NamedChild(i)
+		if arg == nil {
+			continue
+		}
+		if IsFunctionLikeValueNode(arg) {
+			return true
+		}
+		if arg.Kind() == "parenthesized_expression" {
+			for j := uint(0); j < arg.NamedChildCount(); j++ {
+				if IsFunctionLikeValueNode(arg.NamedChild(j)) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func SortSymbols(symbols []Symbol) {
 	sort.Slice(symbols, func(i, j int) bool {
 		if symbols[i].StartLine == symbols[j].StartLine {
