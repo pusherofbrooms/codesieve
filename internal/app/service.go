@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	ignore "github.com/sabhiram/go-gitignore"
@@ -31,7 +29,7 @@ func (s *Service) Close() error { return s.store.Close() }
 
 func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (IndexResult, error) {
 	start := time.Now()
-	repoPath, err := filepath.Abs(path)
+	repoPath, err := normalizeRepoPath(path)
 	if err != nil {
 		return IndexResult{}, err
 	}
@@ -145,7 +143,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 				parsed[i].QualifiedName = parsed[i].Name
 			}
 		}
-		if err := s.store.replaceFileSymbols(ctx, repoID, rel, detectedLang, hash, info.Size(), info.ModTime().UnixNano(), parseStatus, parsed); err != nil {
+		if err := s.store.replaceFileSymbols(ctx, repoID, rel, detectedLang, hash, info.Size(), info.ModTime().UnixNano(), parseStatus, string(content), parsed); err != nil {
 			return err
 		}
 		count++
@@ -194,51 +192,15 @@ func (s *Service) SearchSymbols(ctx context.Context, opt SearchSymbolOptions) (S
 }
 
 func (s *Service) SearchText(ctx context.Context, opt SearchTextOptions) (TextSearchResult, error) {
-	_ = ctx
 	repoPath, err := currentRepoRoot()
 	if err != nil {
 		return TextSearchResult{}, err
 	}
-	query := opt.Query
-	queryFold := strings.ToLower(opt.Query)
-	if opt.Limit <= 0 {
-		opt.Limit = 20
+	items, err := s.store.searchText(ctx, repoPath, opt)
+	if err != nil {
+		return TextSearchResult{}, err
 	}
-	var results []TextSearchItem
-	_ = filepath.WalkDir(repoPath, func(fullPath string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil || d.IsDir() || len(results) >= opt.Limit {
-			return walkErr
-		}
-		lang := DetectLanguage(fullPath)
-		if lang == "" || (opt.Lang != "" && lang != opt.Lang) {
-			return nil
-		}
-		content, err := os.ReadFile(fullPath)
-		if err != nil || isBinary(content) {
-			return nil
-		}
-		rel, _ := filepath.Rel(repoPath, fullPath)
-		if opt.PathSubstr != "" && !strings.Contains(filepath.ToSlash(rel), opt.PathSubstr) {
-			return nil
-		}
-		scanner := bufio.NewScanner(strings.NewReader(string(content)))
-		lineNo := 0
-		for scanner.Scan() && len(results) < opt.Limit {
-			lineNo++
-			line := scanner.Text()
-			var idx int
-			if opt.CaseSensitive {
-				idx = strings.Index(line, query)
-			} else {
-				idx = strings.Index(strings.ToLower(line), queryFold)
-			}
-			if idx >= 0 {
-				results = append(results, TextSearchItem{FilePath: filepath.ToSlash(rel), Line: lineNo, Snippet: strings.TrimSpace(line), StartCol: idx + 1, EndCol: idx + len(opt.Query) + 1})
-			}
-		}
-		return nil
-	})
-	return TextSearchResult{Results: results}, nil
+	return TextSearchResult{Results: items}, nil
 }
 
 func (s *Service) Outline(ctx context.Context, path string) (OutlineResult, error) {
@@ -315,7 +277,23 @@ func (s *Service) RepoOutline(ctx context.Context) (RepoOutlineResult, error) {
 }
 
 func currentRepoRoot() (string, error) {
-	return os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return normalizeRepoPath(cwd)
+}
+
+func normalizeRepoPath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	real, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return abs, nil
+	}
+	return real, nil
 }
 
 func resolvePathInRepo(path string) (repoPath, relPath, fullPath string, err error) {

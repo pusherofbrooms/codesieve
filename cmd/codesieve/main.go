@@ -143,6 +143,8 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 	kind := ""
 	pathSubstr := ""
 	caseSensitive := false
+	regexMode := false
+	contextLines := 0
 	query := args[1]
 	for _, arg := range args[2:] {
 		switch {
@@ -169,6 +171,14 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 			pathSubstr = strings.TrimPrefix(arg, "--path-substr=")
 		case arg == "--case-sensitive":
 			caseSensitive = true
+		case arg == "--regex":
+			regexMode = true
+		case strings.HasPrefix(arg, "--context-lines="):
+			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--context-lines="))
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context-lines"))
+			}
+			contextLines = v
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
 		}
@@ -182,7 +192,7 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 		}
 		return printSuccess(start, jsonMode, result)
 	case "text":
-		result, err := svc.SearchText(ctx, app.SearchTextOptions{Query: query, Limit: limit, Lang: lang, PathSubstr: pathSubstr, CaseSensitive: caseSensitive})
+		result, err := svc.SearchText(ctx, app.SearchTextOptions{Query: query, Limit: limit, Lang: lang, PathSubstr: pathSubstr, CaseSensitive: caseSensitive, Regex: regexMode, ContextLines: contextLines})
 		if err != nil {
 			return printError(start, jsonMode, err)
 		}
@@ -410,6 +420,8 @@ func printSearchTextUsage() {
 	fmt.Println("  --lang=<language>")
 	fmt.Println("  --path-substr=<substring>")
 	fmt.Println("  --case-sensitive")
+	fmt.Println("  --regex")
+	fmt.Println("  --context-lines=<n>")
 }
 
 func printOutlineUsage() {

@@ -1,11 +1,13 @@
 package app
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	_ "modernc.org/sqlite"
@@ -61,6 +63,7 @@ CREATE TABLE IF NOT EXISTS files (
   mod_time_ns INTEGER NOT NULL DEFAULT 0,
   indexed_at TEXT NOT NULL,
   parse_status TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
   UNIQUE(repo_id, path)
 );
 CREATE TABLE IF NOT EXISTS symbols (
@@ -97,6 +100,10 @@ CREATE INDEX IF NOT EXISTS idx_files_repo_path ON files(repo_id, path);
 	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return err
 	}
+	_, err = s.db.Exec(`ALTER TABLE files ADD COLUMN content TEXT NOT NULL DEFAULT ''`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
 	return nil
 }
 
@@ -110,15 +117,15 @@ func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {
 	return id, err
 }
 
-func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, modTimeNS int64, parseStatus string, symbols []Symbol) error {
+func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, modTimeNS int64, parseStatus, content string, symbols []Symbol) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	_, err = tx.ExecContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, mod_time_ns, indexed_at, parse_status) VALUES(?, ?, ?, ?, ?, ?, datetime('now'), ?)
-		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status`, repoID, relPath, language, hash, size, modTimeNS, parseStatus)
+	_, err = tx.ExecContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=excluded.content`, repoID, relPath, language, hash, size, modTimeNS, parseStatus, content)
 	if err != nil {
 		return err
 	}
@@ -274,6 +281,123 @@ func sortStoredSymbols(items []storedSymbol) {
 			}
 		}
 	}
+}
+
+func (s *Store) searchText(ctx context.Context, repoPath string, opt SearchTextOptions) ([]TextSearchItem, error) {
+	if strings.TrimSpace(opt.Query) == "" {
+		return nil, ErrInvalidArgs("query must not be empty")
+	}
+	if opt.Limit <= 0 {
+		opt.Limit = 20
+	}
+	if opt.ContextLines < 0 {
+		return nil, ErrInvalidArgs("invalid --context-lines")
+	}
+
+	var re *regexp.Regexp
+	if opt.Regex {
+		pattern := opt.Query
+		if !opt.CaseSensitive {
+			pattern = "(?i)" + pattern
+		}
+		compiled, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, ErrInvalidArgs("invalid regex")
+		}
+		re = compiled
+	}
+
+	pathLike := "%" + opt.PathSubstr + "%"
+	rows, err := s.db.QueryContext(ctx, `SELECT f.path, f.content
+		FROM files f
+		JOIN repos r ON r.id = f.repo_id
+		WHERE r.path = ?
+		AND (? = '' OR f.language = ?)
+		AND (? = '' OR f.path LIKE ?)
+		ORDER BY f.path`, repoPath, opt.Lang, opt.Lang, opt.PathSubstr, pathLike)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	queryFold := strings.ToLower(opt.Query)
+	results := make([]TextSearchItem, 0, opt.Limit)
+	for rows.Next() && len(results) < opt.Limit {
+		var filePath string
+		var content string
+		if err := rows.Scan(&filePath, &content); err != nil {
+			return nil, err
+		}
+		lines := scanLines(content)
+		for i, line := range lines {
+			if len(results) >= opt.Limit {
+				break
+			}
+			startCol, endCol, ok := textMatchRange(line, opt, queryFold, re)
+			if !ok {
+				continue
+			}
+			item := TextSearchItem{
+				FilePath: filePath,
+				Line:     i + 1,
+				Snippet:  strings.TrimSpace(line),
+				StartCol: startCol,
+				EndCol:   endCol,
+			}
+			if opt.ContextLines > 0 {
+				start := i - opt.ContextLines
+				if start < 0 {
+					start = 0
+				}
+				end := i + opt.ContextLines + 1
+				if end > len(lines) {
+					end = len(lines)
+				}
+				if start < i {
+					item.ContextBefore = append([]string(nil), lines[start:i]...)
+				}
+				if i+1 < end {
+					item.ContextAfter = append([]string(nil), lines[i+1:end]...)
+				}
+			}
+			results = append(results, item)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func scanLines(content string) []string {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lines := make([]string, 0)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines
+}
+
+func textMatchRange(line string, opt SearchTextOptions, queryFold string, re *regexp.Regexp) (int, int, bool) {
+	if opt.Regex {
+		loc := re.FindStringIndex(line)
+		if loc == nil {
+			return 0, 0, false
+		}
+		return loc[0] + 1, loc[1] + 1, true
+	}
+	if opt.CaseSensitive {
+		idx := strings.Index(line, opt.Query)
+		if idx < 0 {
+			return 0, 0, false
+		}
+		return idx + 1, idx + len(opt.Query) + 1, true
+	}
+	idx := strings.Index(strings.ToLower(line), queryFold)
+	if idx < 0 {
+		return 0, 0, false
+	}
+	return idx + 1, idx + len(opt.Query) + 1, true
 }
 
 func rankSymbol(opt SearchSymbolOptions, item storedSymbol) float64 {

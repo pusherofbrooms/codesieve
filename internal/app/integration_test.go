@@ -82,9 +82,14 @@ func copyDir(t *testing.T, src, dst string) {
 func repoIDForPath(t *testing.T, db *sql.DB, repoPath string) int64 {
 	t.Helper()
 
+	normalized, err := normalizeRepoPath(repoPath)
+	if err != nil {
+		t.Fatalf("normalize repo path %s: %v", repoPath, err)
+	}
+
 	var id int64
-	if err := db.QueryRow(`SELECT id FROM repos WHERE path = ?`, repoPath).Scan(&id); err != nil {
-		t.Fatalf("lookup repo id for %s: %v", repoPath, err)
+	if err := db.QueryRow(`SELECT id FROM repos WHERE path = ?`, normalized).Scan(&id); err != nil {
+		t.Fatalf("lookup repo id for %s: %v", normalized, err)
 	}
 	return id
 }
@@ -270,8 +275,12 @@ func TestSearchSymbolsAndGetSymbolRoundTrip(t *testing.T) {
 	if rec.FilePath != target.FilePath {
 		t.Fatalf("file path mismatch: %q vs %q", rec.FilePath, target.FilePath)
 	}
-	if rec.RepoPath != repoPath {
-		t.Fatalf("repo path mismatch: %q vs %q", rec.RepoPath, repoPath)
+	expectedRepoPath, err := normalizeRepoPath(repoPath)
+	if err != nil {
+		t.Fatalf("normalize repo path: %v", err)
+	}
+	if rec.RepoPath != expectedRepoPath {
+		t.Fatalf("repo path mismatch: %q vs %q", rec.RepoPath, expectedRepoPath)
 	}
 
 	// Non-existent ID should yield a coded SYMBOL_NOT_FOUND error.
@@ -285,6 +294,96 @@ func TestSearchSymbolsAndGetSymbolRoundTrip(t *testing.T) {
 	}
 	if ce.Code != "SYMBOL_NOT_FOUND" {
 		t.Fatalf("expected code SYMBOL_NOT_FOUND, got %q", ce.Code)
+	}
+}
+
+func TestSearchTextUsesIndexedContent(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	srcRepo := fixtureRepo(t)
+	workdir := filepath.Join(t.TempDir(), "workrepo-text-indexed")
+	copyDir(t, srcRepo, workdir)
+
+	workReal, err := filepath.EvalSymlinks(workdir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(workdir): %v", err)
+	}
+	if _, err := svc.Index(ctx, workReal, IndexOptions{}); err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(workReal); err != nil {
+		t.Fatalf("Chdir(%s): %v", workReal, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	// Mutate an indexed file after indexing. Search results should still reflect indexed content.
+	mutated := "export class Client {\n  login(token: string) {\n    return token;\n  }\n}\n"
+	if err := os.WriteFile(filepath.Join(workdir, "src", "client.ts"), []byte(mutated), 0o644); err != nil {
+		t.Fatalf("WriteFile mutated client.ts: %v", err)
+	}
+
+	res, err := svc.SearchText(ctx, SearchTextOptions{Query: "AUTH_HEADER", Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchText error: %v", err)
+	}
+	if len(res.Results) == 0 {
+		t.Fatalf("expected indexed AUTH_HEADER match, got none")
+	}
+
+	// Add a new unindexed file; it must not appear until reindex.
+	if err := os.WriteFile(filepath.Join(workdir, "src", "late_added.go"), []byte("package src\n\nconst LATE_ADDED_TOKEN = 1\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile late_added.go: %v", err)
+	}
+	res, err = svc.SearchText(ctx, SearchTextOptions{Query: "LATE_ADDED_TOKEN", Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchText late-added error: %v", err)
+	}
+	if len(res.Results) != 0 {
+		t.Fatalf("expected no matches from unindexed file, got %+v", res.Results)
+	}
+}
+
+func TestSearchTextRegexAndContext(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := fixtureRepo(t)
+	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(repoPath); err != nil {
+		t.Fatalf("Chdir(%s): %v", repoPath, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	res, err := svc.SearchText(ctx, SearchTextOptions{Query: `return\s+id;`, Regex: true, ContextLines: 1, Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchText regex error: %v", err)
+	}
+	if len(res.Results) == 0 {
+		t.Fatalf("expected regex match, got none")
+	}
+
+	item := res.Results[0]
+	if item.FilePath != "src/client.ts" {
+		t.Fatalf("expected src/client.ts result, got %q", item.FilePath)
+	}
+	if len(item.ContextBefore) == 0 || !strings.Contains(item.ContextBefore[len(item.ContextBefore)-1], "fetchUser") {
+		t.Fatalf("expected context_before to include fetchUser declaration, got %+v", item.ContextBefore)
+	}
+	if len(item.ContextAfter) == 0 || strings.TrimSpace(item.ContextAfter[0]) != "}" {
+		t.Fatalf("expected context_after to include closing brace, got %+v", item.ContextAfter)
 	}
 }
 
@@ -430,8 +529,12 @@ func TestRepoOutlineSummarizesIndexedRepo(t *testing.T) {
 		t.Fatalf("RepoOutline error: %v", err)
 	}
 
-	if result.RepoPath != repoPath {
-		t.Fatalf("expected RepoPath %q, got %q", repoPath, result.RepoPath)
+	expectedRepoPath, err := normalizeRepoPath(repoPath)
+	if err != nil {
+		t.Fatalf("normalize repo path: %v", err)
+	}
+	if result.RepoPath != expectedRepoPath {
+		t.Fatalf("expected RepoPath %q, got %q", expectedRepoPath, result.RepoPath)
 	}
 	if result.TotalFiles != 3 {
 		t.Fatalf("expected TotalFiles=3, got %d", result.TotalFiles)

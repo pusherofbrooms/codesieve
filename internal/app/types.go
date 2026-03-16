@@ -70,14 +70,18 @@ type SearchTextOptions struct {
 	Lang          string
 	PathSubstr    string
 	CaseSensitive bool
+	Regex         bool
+	ContextLines  int
 }
 
 type TextSearchItem struct {
-	FilePath string `json:"file_path"`
-	Line     int    `json:"line"`
-	Snippet  string `json:"snippet"`
-	StartCol int    `json:"start_col,omitempty"`
-	EndCol   int    `json:"end_col,omitempty"`
+	FilePath      string   `json:"file_path"`
+	Line          int      `json:"line"`
+	Snippet       string   `json:"snippet"`
+	StartCol      int      `json:"start_col,omitempty"`
+	EndCol        int      `json:"end_col,omitempty"`
+	ContextBefore []string `json:"context_before,omitempty"`
+	ContextAfter  []string `json:"context_after,omitempty"`
 }
 
 type TextSearchResult struct {
