@@ -1,6 +1,8 @@
 package app
 
 import (
+	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -42,6 +44,8 @@ var docExtensions = map[string]struct{}{
 	".ipynb":    {},
 }
 
+const secretPathPatternsEnvVar = "CODESIEVE_SECRET_PATH_PATTERNS"
+
 func isSecretPath(relPath string) bool {
 	rel := strings.ToLower(filepath.ToSlash(relPath))
 	base := strings.ToLower(filepath.Base(rel))
@@ -70,5 +74,33 @@ func isSecretPath(relPath string) bool {
 			return true
 		}
 	}
+	for _, p := range extraSecretPatterns() {
+		if p == "" {
+			continue
+		}
+		if matched, _ := path.Match(p, base); matched {
+			return true
+		}
+		if matched, _ := path.Match(p, rel); matched {
+			return true
+		}
+	}
 	return false
+}
+
+func extraSecretPatterns() []string {
+	raw := strings.TrimSpace(os.Getenv(secretPathPatternsEnvVar))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	patterns := make([]string, 0, len(parts))
+	for _, part := range parts {
+		p := strings.ToLower(strings.TrimSpace(part))
+		if p == "" {
+			continue
+		}
+		patterns = append(patterns, p)
+	}
+	return patterns
 }
