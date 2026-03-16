@@ -27,6 +27,8 @@ description: Token-efficient local code indexing and retrieval for coding agents
    codesieve repo outline --json
    ```
 
+   Inspect `data.latest_index_run` (status + file counters + duration) to quickly decide whether reindexing is needed.
+
 3. Search symbols first:
 
    ```bash
