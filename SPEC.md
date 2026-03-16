@@ -444,7 +444,7 @@ To keep language additions cheap and consistent, the implementation should inclu
    - Provide shared traversal/extraction helpers for common node patterns (named declarations, container/member relationships, signature extraction).
    - Keep language files focused on language-specific mapping, not repeated tree walking boilerplate.
 
-4. **Standard fixture convention per language**
+4. **Standard fixture convention per language** *(done)*
    - Maintain a consistent fixture layout for language test data.
    - Require the same baseline assertions for each new language: indexing counts, outline hierarchy quality, and exact `show symbol` source retrieval.
 

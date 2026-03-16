@@ -1,0 +1,166 @@
+package app
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+type languageFixtureCase struct {
+	name             string
+	fixtureDir       string
+	filePath         string
+	expectedLanguage string
+	topName          string
+	topKind          string
+	childName        string
+	childKind        string
+	query            string
+	queryKind        string
+	queryQualified   string
+	showContains     string
+}
+
+func TestLanguageFixturesFollowStandardContract(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	cases := []languageFixtureCase{
+		{
+			name:             "go",
+			fixtureDir:       "tests/testdata/languages/go",
+			filePath:         "basic.go",
+			expectedLanguage: "go",
+			topName:          "AuthService",
+			topKind:          "struct",
+			childName:        "Logout",
+			childKind:        "method",
+			query:            "Login",
+			queryKind:        "function",
+			queryQualified:   "Login",
+			showContains:     "func Login(user string) error",
+		},
+		{
+			name:             "python",
+			fixtureDir:       "tests/testdata/languages/python",
+			filePath:         "basic.py",
+			expectedLanguage: "python",
+			topName:          "Auth",
+			topKind:          "class",
+			childName:        "login",
+			childKind:        "method",
+			query:            "login",
+			queryKind:        "method",
+			queryQualified:   "Auth.login",
+			showContains:     "def login(self, user):",
+		},
+		{
+			name:             "typescript",
+			fixtureDir:       "tests/testdata/languages/typescript",
+			filePath:         "basic.ts",
+			expectedLanguage: "typescript",
+			topName:          "Client",
+			topKind:          "class",
+			childName:        "login",
+			childKind:        "method",
+			query:            "login",
+			queryKind:        "method",
+			queryQualified:   "Client.login",
+			showContains:     "login(token: string)",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixtureSrc := fixturePath(t, tc.fixtureDir)
+			workdir := filepath.Join(t.TempDir(), "work")
+			copyDir(t, fixtureSrc, workdir)
+
+			res, err := svc.Index(ctx, workdir, IndexOptions{})
+			if err != nil {
+				t.Fatalf("Index error: %v", err)
+			}
+			if res.FilesIndexed != 1 || res.FilesUpdated != 1 || res.FilesUnchanged != 0 {
+				t.Fatalf("unexpected index result: %+v", res)
+			}
+
+			cwd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Getwd: %v", err)
+			}
+			if err := os.Chdir(workdir); err != nil {
+				t.Fatalf("Chdir(%s): %v", workdir, err)
+			}
+			t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+			outline, err := svc.Outline(ctx, tc.filePath)
+			if err != nil {
+				t.Fatalf("Outline error: %v", err)
+			}
+			if outline.Language != tc.expectedLanguage {
+				t.Fatalf("outline language = %q, want %q", outline.Language, tc.expectedLanguage)
+			}
+
+			top := findOutlineSymbol(outline.Symbols, tc.topName, tc.topKind)
+			if top == nil {
+				t.Fatalf("missing top-level symbol %s/%s in outline: %+v", tc.topName, tc.topKind, outline.Symbols)
+			}
+			child := findOutlineSymbol(top.Children, tc.childName, tc.childKind)
+			if child == nil {
+				t.Fatalf("missing nested child symbol %s/%s under %s: %+v", tc.childName, tc.childKind, tc.topName, top.Children)
+			}
+
+			search, err := svc.SearchSymbols(ctx, SearchSymbolOptions{Query: tc.query, Kind: tc.queryKind, Limit: 10})
+			if err != nil {
+				t.Fatalf("SearchSymbols error: %v", err)
+			}
+			id := ""
+			for _, item := range search.Results {
+				if item.QualifiedName == tc.queryQualified && item.Kind == tc.queryKind {
+					id = item.ID
+					break
+				}
+			}
+			if id == "" {
+				t.Fatalf("missing expected search symbol %s/%s in %+v", tc.queryQualified, tc.queryKind, search.Results)
+			}
+
+			shown, err := svc.ShowSymbol(ctx, id, 0, false)
+			if err != nil {
+				t.Fatalf("ShowSymbol error: %v", err)
+			}
+			if !strings.Contains(shown.Content, tc.showContains) {
+				t.Fatalf("show symbol content missing %q:\n%s", tc.showContains, shown.Content)
+			}
+		})
+	}
+}
+
+func fixturePath(t *testing.T, rel string) string {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	path := filepath.Join(cwd, "..", "..", rel)
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatalf("Abs(%s): %v", path, err)
+	}
+	if _, err := os.Stat(abs); err != nil {
+		t.Fatalf("fixture path %s: %v", abs, err)
+	}
+	return abs
+}
+
+func findOutlineSymbol(symbols []OutlineSymbol, name, kind string) *OutlineSymbol {
+	for i := range symbols {
+		s := &symbols[i]
+		if s.Name == name && s.Kind == kind {
+			return s
+		}
+	}
+	return nil
+}
