@@ -30,6 +30,7 @@ func (s *Service) Close() error { return s.store.Close() }
 
 func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (IndexResult, error) {
 	start := time.Now()
+	startedAt := start.UTC().Format(time.RFC3339)
 	repoPath, err := normalizeRepoPath(path)
 	if err != nil {
 		return IndexResult{}, err
@@ -193,6 +194,23 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		res.FilesDeleted = deleted
 	}
 	res.DurationMS = time.Since(start).Milliseconds()
+	finishedAt := time.Now().UTC().Format(time.RFC3339)
+	run := IndexRunSummary{
+		StartedAt:        startedAt,
+		FinishedAt:       finishedAt,
+		DurationMS:       res.DurationMS,
+		Status:           "success",
+		FilesIndexed:     res.FilesIndexed,
+		FilesUpdated:     res.FilesUpdated,
+		FilesUnchanged:   res.FilesUnchanged,
+		FilesDeleted:     res.FilesDeleted,
+		FilesSkipped:     len(res.FilesSkipped),
+		SymbolsExtracted: res.SymbolsExtracted,
+		WarningsCount:    len(res.Warnings),
+	}
+	if err := s.store.addIndexRun(ctx, repoID, run); err != nil {
+		return IndexResult{}, err
+	}
 	return res, nil
 }
 

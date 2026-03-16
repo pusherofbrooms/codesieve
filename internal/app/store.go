@@ -89,9 +89,27 @@ CREATE TABLE IF NOT EXISTS diagnostics (
   code TEXT NOT NULL,
   message TEXT
 );
+CREATE TABLE IF NOT EXISTS index_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_id INTEGER NOT NULL,
+  started_at TEXT NOT NULL,
+  finished_at TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  files_indexed INTEGER NOT NULL,
+  files_updated INTEGER NOT NULL,
+  files_unchanged INTEGER NOT NULL,
+  files_deleted INTEGER NOT NULL,
+  files_skipped INTEGER NOT NULL,
+  symbols_extracted INTEGER NOT NULL,
+  warnings_count INTEGER NOT NULL,
+  error_code TEXT,
+  error_message TEXT
+);
 CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
 CREATE INDEX IF NOT EXISTS idx_symbols_qname ON symbols(qualified_name);
 CREATE INDEX IF NOT EXISTS idx_files_repo_path ON files(repo_id, path);
+CREATE INDEX IF NOT EXISTS idx_index_runs_repo_id_id ON index_runs(repo_id, id DESC);
 `
 	if _, err := s.db.Exec(schema); err != nil {
 		return err
@@ -198,6 +216,30 @@ func (s *Store) clearDiagnostics(ctx context.Context, repoID int64) error {
 
 func (s *Store) addDiagnostic(ctx context.Context, repoID int64, d Diagnostic) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO diagnostics(repo_id, path, code, message) VALUES(?, ?, ?, ?)`, repoID, nullable(d.Path), d.Code, nullable(d.Message))
+	return err
+}
+
+func (s *Store) addIndexRun(ctx context.Context, repoID int64, run IndexRunSummary) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO index_runs(
+		repo_id, started_at, finished_at, duration_ms, status,
+		files_indexed, files_updated, files_unchanged, files_deleted,
+		files_skipped, symbols_extracted, warnings_count, error_code, error_message
+	) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		repoID,
+		run.StartedAt,
+		run.FinishedAt,
+		run.DurationMS,
+		run.Status,
+		run.FilesIndexed,
+		run.FilesUpdated,
+		run.FilesUnchanged,
+		run.FilesDeleted,
+		run.FilesSkipped,
+		run.SymbolsExtracted,
+		run.WarningsCount,
+		nullable(run.ErrorCode),
+		nullable(run.ErrorMessage),
+	)
 	return err
 }
 
@@ -670,7 +712,46 @@ func (s *Store) repoSummary(ctx context.Context, repoPath string) (RepoOutlineRe
 		return RepoOutlineResult{}, err
 	}
 
+	latestRun, err := s.latestIndexRun(ctx, repoID)
+	if err != nil {
+		return RepoOutlineResult{}, err
+	}
+	result.LatestIndexRun = latestRun
+
 	return result, nil
+}
+
+func (s *Store) latestIndexRun(ctx context.Context, repoID int64) (*IndexRunSummary, error) {
+	var run IndexRunSummary
+	err := s.db.QueryRowContext(ctx, `SELECT started_at, finished_at, duration_ms, status,
+		files_indexed, files_updated, files_unchanged, files_deleted,
+		files_skipped, symbols_extracted, warnings_count,
+		COALESCE(error_code,''), COALESCE(error_message,'')
+		FROM index_runs
+		WHERE repo_id = ?
+		ORDER BY id DESC
+		LIMIT 1`, repoID).Scan(
+		&run.StartedAt,
+		&run.FinishedAt,
+		&run.DurationMS,
+		&run.Status,
+		&run.FilesIndexed,
+		&run.FilesUpdated,
+		&run.FilesUnchanged,
+		&run.FilesDeleted,
+		&run.FilesSkipped,
+		&run.SymbolsExtracted,
+		&run.WarningsCount,
+		&run.ErrorCode,
+		&run.ErrorMessage,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &run, nil
 }
 
 func nullable(v string) any {

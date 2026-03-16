@@ -565,6 +565,18 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 	case app.RepoOutlineResult:
 		fmt.Printf("%s\n", v.RepoPath)
 		fmt.Printf("files: %d  symbols: %d  indexed_at: %s  stale: %t\n", v.TotalFiles, v.TotalSymbols, v.IndexedAt, v.Stale)
+		if v.LatestIndexRun != nil {
+			fmt.Printf("latest index run: status=%s duration_ms=%d indexed=%d updated=%d unchanged=%d deleted=%d skipped=%d warnings=%d\n",
+				v.LatestIndexRun.Status,
+				v.LatestIndexRun.DurationMS,
+				v.LatestIndexRun.FilesIndexed,
+				v.LatestIndexRun.FilesUpdated,
+				v.LatestIndexRun.FilesUnchanged,
+				v.LatestIndexRun.FilesDeleted,
+				v.LatestIndexRun.FilesSkipped,
+				v.LatestIndexRun.WarningsCount,
+			)
+		}
 		fmt.Println("languages:")
 		for k, c := range v.LanguageBreakdown {
 			fmt.Printf("- %s: %d\n", k, c)

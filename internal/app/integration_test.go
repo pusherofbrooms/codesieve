@@ -160,6 +160,60 @@ func TestIncrementalReindexSkipsUnchanged(t *testing.T) {
 	}
 }
 
+func TestIndexPersistsRunStats(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := fixtureRepo(t)
+	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
+		t.Fatalf("first Index error: %v", err)
+	}
+	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
+		t.Fatalf("second Index error: %v", err)
+	}
+
+	repoID := repoIDForPath(t, svc.store.db, repoPath)
+
+	var runCount int
+	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM index_runs WHERE repo_id = ?`, repoID).Scan(&runCount); err != nil {
+		t.Fatalf("count index_runs: %v", err)
+	}
+	if runCount != 2 {
+		t.Fatalf("expected 2 index_runs rows, got %d", runCount)
+	}
+
+	var status string
+	var filesIndexed, filesUpdated, filesUnchanged, filesDeleted, filesSkipped int
+	var symbolsExtracted, warningsCount int
+	var durationMS int64
+	if err := svc.store.db.QueryRow(`SELECT status, files_indexed, files_updated, files_unchanged, files_deleted, files_skipped, symbols_extracted, warnings_count, duration_ms
+		FROM index_runs
+		WHERE repo_id = ?
+		ORDER BY id DESC
+		LIMIT 1`, repoID).Scan(&status, &filesIndexed, &filesUpdated, &filesUnchanged, &filesDeleted, &filesSkipped, &symbolsExtracted, &warningsCount, &durationMS); err != nil {
+		t.Fatalf("query latest index_run: %v", err)
+	}
+
+	if status != "success" {
+		t.Fatalf("expected status=success, got %q", status)
+	}
+	if filesIndexed != 0 || filesUpdated != 0 || filesUnchanged != 3 || filesDeleted != 0 {
+		t.Fatalf("unexpected latest run file stats: indexed=%d updated=%d unchanged=%d deleted=%d", filesIndexed, filesUpdated, filesUnchanged, filesDeleted)
+	}
+	if filesSkipped != 0 {
+		t.Fatalf("expected files_skipped=0 for fixture, got %d", filesSkipped)
+	}
+	if symbolsExtracted != 0 {
+		t.Fatalf("expected symbols_extracted=0 for unchanged reindex, got %d", symbolsExtracted)
+	}
+	if warningsCount != 0 {
+		t.Fatalf("expected warnings_count=0, got %d", warningsCount)
+	}
+	if durationMS < 0 {
+		t.Fatalf("expected non-negative duration_ms, got %d", durationMS)
+	}
+}
+
 func TestIncrementalReindexSkipsUnchangedParseFailures(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)
@@ -644,6 +698,15 @@ func TestRepoOutlineSummarizesIndexedRepo(t *testing.T) {
 	}
 	if result.IndexedAt == "" {
 		t.Fatalf("expected non-empty indexed_at")
+	}
+	if result.LatestIndexRun == nil {
+		t.Fatalf("expected latest_index_run in repo outline")
+	}
+	if result.LatestIndexRun.Status != "success" {
+		t.Fatalf("expected latest_index_run.status=success, got %+v", result.LatestIndexRun)
+	}
+	if result.LatestIndexRun.FilesIndexed != 3 || result.LatestIndexRun.FilesUpdated != 3 {
+		t.Fatalf("unexpected latest_index_run file stats: %+v", result.LatestIndexRun)
 	}
 }
 

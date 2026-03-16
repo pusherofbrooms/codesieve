@@ -265,6 +265,9 @@ EOF
   echo "$output" | jq -e '.data.symbol_kind_counts | length > 0' >/dev/null
   echo "$output" | jq -e '.data.index_age_seconds >= 0' >/dev/null
   echo "$output" | jq -e '.data.stale == false' >/dev/null
+  echo "$output" | jq -e '.data.latest_index_run.status == "success"' >/dev/null
+  echo "$output" | jq -e '.data.latest_index_run.files_indexed == 3' >/dev/null
+  echo "$output" | jq -e '.data.latest_index_run.files_updated == 3' >/dev/null
 }
 
 @test "top-level help aliases exit successfully" {

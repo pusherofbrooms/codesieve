@@ -113,6 +113,8 @@ codesieve show symbol <id> --verify --json
 codesieve show symbols <id-1> <id-2> --json
 ```
 
+`repo outline --json` includes `latest_index_run` stats from SQLite (status, duration, and per-run file/symbol counters) so agents can quickly inspect index freshness and recent indexing behavior.
+
 ## Supported languages (v1)
 
 - Go

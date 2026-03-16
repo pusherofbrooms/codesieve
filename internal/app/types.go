@@ -117,16 +117,33 @@ type OutlineResult struct {
 	Symbols  []OutlineSymbol `json:"symbols"`
 }
 
+type IndexRunSummary struct {
+	StartedAt        string `json:"started_at"`
+	FinishedAt       string `json:"finished_at"`
+	DurationMS       int64  `json:"duration_ms"`
+	Status           string `json:"status"`
+	FilesIndexed     int    `json:"files_indexed"`
+	FilesUpdated     int    `json:"files_updated"`
+	FilesUnchanged   int    `json:"files_unchanged"`
+	FilesDeleted     int    `json:"files_deleted"`
+	FilesSkipped     int    `json:"files_skipped"`
+	SymbolsExtracted int    `json:"symbols_extracted"`
+	WarningsCount    int    `json:"warnings_count"`
+	ErrorCode        string `json:"error_code,omitempty"`
+	ErrorMessage     string `json:"error_message,omitempty"`
+}
+
 type RepoOutlineResult struct {
-	RepoPath                string         `json:"repo_path"`
-	TotalFiles              int            `json:"total_files"`
-	TotalSymbols            int            `json:"total_symbols"`
-	LanguageBreakdown       map[string]int `json:"language_breakdown"`
-	TopLevelDirectoryCounts map[string]int `json:"top_level_directory_counts"`
-	SymbolKindCounts        map[string]int `json:"symbol_kind_counts"`
-	IndexedAt               string         `json:"indexed_at"`
-	IndexAgeSeconds         int64          `json:"index_age_seconds"`
-	Stale                   bool           `json:"stale"`
+	RepoPath                string           `json:"repo_path"`
+	TotalFiles              int              `json:"total_files"`
+	TotalSymbols            int              `json:"total_symbols"`
+	LanguageBreakdown       map[string]int   `json:"language_breakdown"`
+	TopLevelDirectoryCounts map[string]int   `json:"top_level_directory_counts"`
+	SymbolKindCounts        map[string]int   `json:"symbol_kind_counts"`
+	IndexedAt               string           `json:"indexed_at"`
+	IndexAgeSeconds         int64            `json:"index_age_seconds"`
+	Stale                   bool             `json:"stale"`
+	LatestIndexRun          *IndexRunSummary `json:"latest_index_run,omitempty"`
 }
 
 type SymbolVerification struct {
