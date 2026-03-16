@@ -448,10 +448,6 @@ To keep language additions cheap and consistent, the implementation should inclu
    - Maintain a consistent fixture layout for language test data.
    - Require the same baseline assertions for each new language: indexing counts, outline hierarchy quality, and exact `show symbol` source retrieval.
 
-5. **Automated vendoring workflow for grammar sources**
-   - Provide a repo script to vendor a grammar from an official upstream repository at a pinned tag/commit.
-   - Record source repository and pinned revision in vendored metadata for auditability and reproducible upgrades.
-
 ### Next language priorities (post-v1)
 
 Recommended order for near-term additions, balancing team usage, parser availability, and implementation risk:
