@@ -118,31 +118,76 @@ func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {
 }
 
 func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, modTimeNS int64, parseStatus, content string, symbols []Symbol) error {
+	return s.replaceFilesSymbolsBatch(ctx, repoID, []FileIndexUpdate{{
+		RelPath:     relPath,
+		Language:    language,
+		Hash:        hash,
+		SizeBytes:   size,
+		ModTimeNS:   modTimeNS,
+		ParseStatus: parseStatus,
+		Content:     content,
+		Symbols:     symbols,
+	}})
+}
+
+func (s *Store) replaceFilesSymbolsBatch(ctx context.Context, repoID int64, updates []FileIndexUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	_, err = tx.ExecContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
-		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=excluded.content`, repoID, relPath, language, hash, size, modTimeNS, parseStatus, content)
+	upsertFileStmt, err := tx.PrepareContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=excluded.content`)
 	if err != nil {
 		return err
 	}
-	var fileID int64
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM files WHERE repo_id = ? AND path = ?`, repoID, relPath).Scan(&fileID); err != nil {
+	defer upsertFileStmt.Close()
+
+	lookupFileStmt, err := tx.PrepareContext(ctx, `SELECT id FROM files WHERE repo_id = ? AND path = ?`)
+	if err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM symbols WHERE file_id = ?`, fileID); err != nil {
+	defer lookupFileStmt.Close()
+
+	deleteSymbolsStmt, err := tx.PrepareContext(ctx, `DELETE FROM symbols WHERE file_id = ?`)
+	if err != nil {
 		return err
 	}
-	for _, sym := range symbols {
-		_, err := tx.ExecContext(ctx, `INSERT INTO symbols(id, repo_id, file_id, name, qualified_name, kind, parent_symbol_id, signature, documentation, start_line, end_line, start_byte, end_byte, language)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, sym.ID, repoID, fileID, sym.Name, sym.QualifiedName, sym.Kind, nullable(sym.ParentID), nullable(sym.Signature), nullable(sym.Documentation), sym.StartLine, sym.EndLine, sym.StartByte, sym.EndByte, sym.Language)
-		if err != nil {
+	defer deleteSymbolsStmt.Close()
+
+	insertSymbolStmt, err := tx.PrepareContext(ctx, `INSERT INTO symbols(id, repo_id, file_id, name, qualified_name, kind, parent_symbol_id, signature, documentation, start_line, end_line, start_byte, end_byte, language)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer insertSymbolStmt.Close()
+
+	for _, update := range updates {
+		if _, err := upsertFileStmt.ExecContext(ctx, repoID, update.RelPath, update.Language, update.Hash, update.SizeBytes, update.ModTimeNS, update.ParseStatus, update.Content); err != nil {
 			return err
 		}
+
+		var fileID int64
+		if err := lookupFileStmt.QueryRowContext(ctx, repoID, update.RelPath).Scan(&fileID); err != nil {
+			return err
+		}
+
+		if _, err := deleteSymbolsStmt.ExecContext(ctx, fileID); err != nil {
+			return err
+		}
+
+		for _, sym := range update.Symbols {
+			if _, err := insertSymbolStmt.ExecContext(ctx, sym.ID, repoID, fileID, sym.Name, sym.QualifiedName, sym.Kind, nullable(sym.ParentID), nullable(sym.Signature), nullable(sym.Documentation), sym.StartLine, sym.EndLine, sym.StartByte, sym.EndByte, sym.Language); err != nil {
+				return err
+			}
+		}
 	}
+
 	return tx.Commit()
 }
 

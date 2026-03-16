@@ -49,6 +49,17 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 	res := IndexResult{RepoPath: repoPath}
 	count := 0
 	seen := map[string]struct{}{}
+	pending := make([]FileIndexUpdate, 0, 128)
+	flush := func() error {
+		if len(pending) == 0 {
+			return nil
+		}
+		if err := s.store.replaceFilesSymbolsBatch(ctx, repoID, pending); err != nil {
+			return err
+		}
+		pending = pending[:0]
+		return nil
+	}
 	err = filepath.WalkDir(repoPath, func(fullPath string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -102,7 +113,12 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		}
 		seen[rel] = struct{}{}
 		if !opt.Force {
-			if prev, ok := existing[rel]; ok && prev.SizeBytes == info.Size() && prev.ModTimeNS == info.ModTime().UnixNano() && prev.ParseStatus == "ok" {
+			if prev, ok := existing[rel]; ok && prev.SizeBytes == info.Size() && prev.ModTimeNS == info.ModTime().UnixNano() {
+				if prev.ParseStatus == "parse_failed" {
+					d := Diagnostic{Code: "PARSE_FAILED", Path: rel, Message: "parse previously failed (unchanged file)"}
+					res.Warnings = append(res.Warnings, d)
+					_ = s.store.addDiagnostic(ctx, repoID, d)
+				}
 				res.FilesUnchanged++
 				return nil
 			}
@@ -120,7 +136,12 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		}
 		hash := sha256hex(content)
 		if !opt.Force {
-			if prev, ok := existing[rel]; ok && prev.Hash == hash && prev.ParseStatus == "ok" {
+			if prev, ok := existing[rel]; ok && prev.Hash == hash {
+				if prev.ParseStatus == "parse_failed" {
+					d := Diagnostic{Code: "PARSE_FAILED", Path: rel, Message: "parse previously failed (unchanged file)"}
+					res.Warnings = append(res.Warnings, d)
+					_ = s.store.addDiagnostic(ctx, repoID, d)
+				}
 				res.FilesUnchanged++
 				return nil
 			}
@@ -143,8 +164,20 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 				parsed[i].QualifiedName = parsed[i].Name
 			}
 		}
-		if err := s.store.replaceFileSymbols(ctx, repoID, rel, detectedLang, hash, info.Size(), info.ModTime().UnixNano(), parseStatus, string(content), parsed); err != nil {
-			return err
+		pending = append(pending, FileIndexUpdate{
+			RelPath:     rel,
+			Language:    detectedLang,
+			Hash:        hash,
+			SizeBytes:   info.Size(),
+			ModTimeNS:   info.ModTime().UnixNano(),
+			ParseStatus: parseStatus,
+			Content:     string(content),
+			Symbols:     parsed,
+		})
+		if len(pending) >= 128 {
+			if err := flush(); err != nil {
+				return err
+			}
 		}
 		count++
 		res.FilesIndexed++
@@ -154,6 +187,9 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 	})
 	if err != nil && err != io.EOF {
 		return IndexResult{}, err
+	}
+	if ferr := flush(); ferr != nil {
+		return IndexResult{}, ferr
 	}
 	if err == nil || err == io.EOF {
 		deleted, derr := s.store.deleteMissingFiles(ctx, repoID, seen)

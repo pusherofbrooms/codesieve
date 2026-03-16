@@ -160,6 +160,42 @@ func TestIncrementalReindexSkipsUnchanged(t *testing.T) {
 	}
 }
 
+func TestIncrementalReindexSkipsUnchangedParseFailures(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	workdir := filepath.Join(t.TempDir(), "workrepo-parse-fail")
+	if err := os.MkdirAll(filepath.Join(workdir, "src"), 0o755); err != nil {
+		t.Fatalf("MkdirAll src: %v", err)
+	}
+	broken := "package src\n\nfunc Broken( {\n"
+	if err := os.WriteFile(filepath.Join(workdir, "src", "broken.go"), []byte(broken), 0o644); err != nil {
+		t.Fatalf("WriteFile broken.go: %v", err)
+	}
+
+	first, err := svc.Index(ctx, workdir, IndexOptions{})
+	if err != nil {
+		t.Fatalf("first Index error: %v", err)
+	}
+	if first.FilesUpdated != 1 || first.FilesUnchanged != 0 {
+		t.Fatalf("unexpected first index result: %+v", first)
+	}
+	if len(first.Warnings) == 0 || first.Warnings[0].Code != "PARSE_FAILED" {
+		t.Fatalf("expected PARSE_FAILED warning on first index, got %+v", first.Warnings)
+	}
+
+	second, err := svc.Index(ctx, workdir, IndexOptions{})
+	if err != nil {
+		t.Fatalf("second Index error: %v", err)
+	}
+	if second.FilesUpdated != 0 || second.FilesUnchanged != 1 {
+		t.Fatalf("expected unchanged parse-failed file to be skipped, got %+v", second)
+	}
+	if len(second.Warnings) == 0 || second.Warnings[0].Code != "PARSE_FAILED" {
+		t.Fatalf("expected cached PARSE_FAILED warning on second index, got %+v", second.Warnings)
+	}
+}
+
 func TestDeleteMissingFileRemovesFromIndex(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)

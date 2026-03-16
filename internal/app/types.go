@@ -40,6 +40,17 @@ type IndexResult struct {
 	DurationMS       int64        `json:"duration_ms"`
 }
 
+type FileIndexUpdate struct {
+	RelPath     string
+	Language    string
+	Hash        string
+	SizeBytes   int64
+	ModTimeNS   int64
+	ParseStatus string
+	Content     string
+	Symbols     []Symbol
+}
+
 type SearchSymbolOptions struct {
 	Query         string
 	Limit         int
