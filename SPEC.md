@@ -634,6 +634,7 @@ Suggested diagnostic codes:
 - `SKIPPED_BINARY`
 - `SKIPPED_TOO_LARGE`
 - `SKIPPED_IGNORED`
+- `SKIPPED_SECRET`
 - `PARSE_FAILED`
 - `FILE_NOT_INDEXED`
 - `SYMBOL_NOT_FOUND`
@@ -656,7 +657,9 @@ Requirements:
 - binary file skipping
 - file size limits
 - symlinks disabled by default
-- secret files skipped when reasonable
+- secret files skipped by default (priority)
+
+Secret-file skipping is a v1 safety priority, not optional polish.
 
 ---
 
@@ -685,6 +688,7 @@ Deliver:
 - CLI skeleton
 - local discovery
 - ignore handling
+- secret-file exclusion with `SKIPPED_SECRET` diagnostics (priority)
 - SQLite setup
 - structural parsing for Go, Python, TS/JS
 - normalized symbol extraction
