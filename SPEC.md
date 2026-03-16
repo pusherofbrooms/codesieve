@@ -727,19 +727,9 @@ Deliver only if clearly needed:
 
 ## Future directions
 
-Keep these out of v1 unless they become necessary:
+For deferred and out-of-scope ideas, see `FUTURE_DIRECTIONS.md`.
 
-- semantic providers and LSP integration
-- references/callers/callees
-- type relationships
-- remote repository indexing
-- editor integrations
-- HTTP services
-- MCP adapters
-- TUI
-- AI summaries
-
-These belong in a separate future directions document.
+`SPEC.md` should stay focused on the executable v1 scope and conditional Milestone 3 additions.
 
 ---
 

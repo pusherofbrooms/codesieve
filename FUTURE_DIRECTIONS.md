@@ -1,8 +1,8 @@
 # Future Directions
 
-This file lists ideas intentionally deferred from `SPEC.md`.
+This file is the backlog for ideas intentionally deferred from `SPEC.md`.
 
-They are not part of the v1 scope unless they become necessary to achieve the core goal of reducing agent token use.
+Items here are out of v1 scope by default. Promote only when they clearly improve the core retrieval loop while preserving local, deterministic behavior.
 
 ## Deferred areas
 
@@ -48,16 +48,16 @@ Note: a thin `pi` extension is explicitly allowed as a companion deliverable and
 - team/org workflows
 - collaborative cache sharing
 
-## Promoted into conditional scope in `SPEC.md`
+## Conditionally eligible in Milestone 3 (`SPEC.md`)
 
-These are no longer fully deferred. They are allowed in Milestone 3 when they remain local, deterministic, and measurably useful for agent retrieval:
+These are not default v1 scope, but may be promoted in Milestone 3 when they stay local, deterministic, and measurably useful for agent retrieval:
 
 - lightweight `find importers` (parser-driven import relationships)
 - package/module summaries derived from indexed symbols (non-AI)
 
-## Rule for promoting an item into scope
+## Promotion criteria
 
-A deferred feature should only move into the main spec if it clearly improves the core agent workflow:
+A deferred feature should move into the main spec only if it clearly improves the core agent workflow:
 
 1. find likely code
 2. inspect compact structure
