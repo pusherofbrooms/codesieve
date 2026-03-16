@@ -427,6 +427,17 @@ Language support only needs to cover:
 
 More languages can be added later.
 
+### Next language priorities (post-v1)
+
+Recommended order for near-term additions, balancing team usage, parser availability, and implementation risk:
+
+1. Terraform / OpenTofu (HCL)
+2. Bash
+3. PHP
+4. C / C++
+
+Keep additions parser-driven and local-only. Each language should ship with fixture coverage for symbol extraction and outline quality before promotion.
+
 ---
 
 ## Architecture
