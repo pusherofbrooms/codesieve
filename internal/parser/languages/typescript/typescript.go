@@ -1,23 +1,23 @@
-package app
+package typescript
 
 import (
 	"strings"
 
-	tsjavascript "github.com/pusherofbrooms/codesieve/internal/tslang/javascript"
+	"github.com/pusherofbrooms/codesieve/internal/parser/core"
 	tstypescript "github.com/pusherofbrooms/codesieve/internal/tslang/typescript"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-func parseTypeScriptSymbols(path string, content []byte) ([]Symbol, error) {
+const Name = "typescript"
+
+var Extensions = []string{".ts", ".tsx"}
+
+func Parse(path string, content []byte) ([]core.Symbol, error) {
 	language := treesitter.NewLanguage(tstypescript.LanguageTypescript())
 	if strings.EqualFold(pathExt(path), ".tsx") {
 		language = treesitter.NewLanguage(tstypescript.LanguageTSX())
 	}
 	return parseTSJSTreeSitter(content, language)
-}
-
-func parseJavaScriptSymbols(_ string, content []byte) ([]Symbol, error) {
-	return parseTSJSTreeSitter(content, treesitter.NewLanguage(tsjavascript.Language()))
 }
 
 func pathExt(path string) string {
@@ -32,9 +32,9 @@ func pathExt(path string) string {
 	return ""
 }
 
-func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbol, error) {
-	return parseWithTreeSitter(content, language, func(root *treesitter.Node) []Symbol {
-		var symbols []Symbol
+func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]core.Symbol, error) {
+	return core.ParseWithTreeSitter(content, language, func(root *treesitter.Node) []core.Symbol {
+		var symbols []core.Symbol
 		var walk func(node *treesitter.Node, className string)
 		walk = func(node *treesitter.Node, className string) {
 			if node == nil {
@@ -49,44 +49,44 @@ func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbo
 			case "class_declaration":
 				nameNode := node.ChildByFieldName("name")
 				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					symbols = append(symbols, makeSymbol(content, node, name, name, "class"))
+					name := core.NodeText(nameNode, content)
+					symbols = append(symbols, core.MakeSymbol(content, node, name, name, "class"))
 					walk(node.ChildByFieldName("body"), name)
 					return
 				}
 			case "function_declaration", "generator_function_declaration":
 				nameNode := node.ChildByFieldName("name")
 				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					sym := makeSymbol(content, node, name, name, "function")
-					sym.Signature = signatureFromNode(node, content)
+					name := core.NodeText(nameNode, content)
+					sym := core.MakeSymbol(content, node, name, name, "function")
+					sym.Signature = core.SignatureFromNode(node, content)
 					symbols = append(symbols, sym)
 				}
 				return
 			case "method_definition":
 				nameNode := node.ChildByFieldName("name")
 				if nameNode != nil {
-					name := nodeText(nameNode, content)
+					name := core.NodeText(nameNode, content)
 					qualified := name
 					parent := ""
 					if className != "" {
 						qualified = className + "." + name
 						parent = className
 					}
-					sym := makeSymbol(content, node, name, qualified, "method")
+					sym := core.MakeSymbol(content, node, name, qualified, "method")
 					sym.ParentID = parent
-					sym.Signature = signatureFromNode(node, content)
+					sym.Signature = core.SignatureFromNode(node, content)
 					symbols = append(symbols, sym)
 				}
 				return
 			case "interface_declaration":
-				appendNamedNode(&symbols, node, content, "name", "interface")
+				core.AppendNamedNode(&symbols, node, content, "name", "interface")
 				return
 			case "type_alias_declaration":
-				appendNamedNode(&symbols, node, content, "name", "type")
+				core.AppendNamedNode(&symbols, node, content, "name", "type")
 				return
 			case "enum_declaration":
-				appendNamedNode(&symbols, node, content, "name", "enum")
+				core.AppendNamedNode(&symbols, node, content, "name", "enum")
 				return
 			case "lexical_declaration", "variable_declaration":
 				for i := uint(0); i < node.NamedChildCount(); i++ {
@@ -107,9 +107,9 @@ func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbo
 						emitAsFunction = callExpressionHasFunctionArg(valueNode)
 					}
 					if emitAsFunction {
-						name := nodeText(nameNode, content)
-						sym := makeSymbol(content, decl, name, name, "function")
-						sym.Signature = signatureFromNode(decl, content)
+						name := core.NodeText(nameNode, content)
+						sym := core.MakeSymbol(content, decl, name, name, "function")
+						sym.Signature = core.SignatureFromNode(decl, content)
 						symbols = append(symbols, sym)
 					}
 				}
@@ -120,7 +120,7 @@ func parseTSJSTreeSitter(content []byte, language *treesitter.Language) ([]Symbo
 			}
 		}
 		walk(root, "")
-		sortSymbols(symbols)
+		core.SortSymbols(symbols)
 		return symbols
 	})
 }

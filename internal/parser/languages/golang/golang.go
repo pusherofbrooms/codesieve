@@ -1,19 +1,25 @@
-package app
+package golang
 
 import (
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
 	"strings"
+
+	"github.com/pusherofbrooms/codesieve/internal/parser/core"
 )
 
-func parseGo(path string, content []byte) ([]Symbol, error) {
+const Name = "go"
+
+var Extensions = []string{".go"}
+
+func Parse(path string, content []byte) ([]core.Symbol, error) {
 	fset := token.NewFileSet()
 	file, err := goparser.ParseFile(fset, path, content, goparser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
-	var symbols []Symbol
+	var symbols []core.Symbol
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.FuncDecl:
@@ -22,14 +28,14 @@ func parseGo(path string, content []byte) ([]Symbol, error) {
 			kind := "function"
 			qualified := node.Name.Name
 			parent := ""
-			sig := renderGoFuncSignature(node)
+			sig := core.RenderGoFuncSignature(node)
 			if node.Recv != nil && len(node.Recv.List) > 0 {
 				kind = "method"
-				recv := recvType(node.Recv.List[0].Type)
+				recv := core.RecvType(node.Recv.List[0].Type)
 				qualified = recv + "." + node.Name.Name
 				parent = recv
 			}
-			symbols = append(symbols, Symbol{
+			symbols = append(symbols, core.Symbol{
 				Name:          node.Name.Name,
 				QualifiedName: qualified,
 				Kind:          kind,
@@ -51,7 +57,7 @@ func parseGo(path string, content []byte) ([]Symbol, error) {
 			case *ast.StructType:
 				kind = "struct"
 			}
-			symbols = append(symbols, Symbol{
+			symbols = append(symbols, core.Symbol{
 				Name:          node.Name.Name,
 				QualifiedName: node.Name.Name,
 				Kind:          kind,
@@ -74,7 +80,7 @@ func parseGo(path string, content []byte) ([]Symbol, error) {
 				for _, name := range vs.Names {
 					start := fset.Position(name.Pos())
 					end := fset.Position(vs.End())
-					symbols = append(symbols, Symbol{
+					symbols = append(symbols, core.Symbol{
 						Name:          name.Name,
 						QualifiedName: name.Name,
 						Kind:          strings.ToLower(node.Tok.String()),
@@ -89,6 +95,6 @@ func parseGo(path string, content []byte) ([]Symbol, error) {
 		}
 		return true
 	})
-	sortSymbols(symbols)
+	core.SortSymbols(symbols)
 	return symbols, nil
 }

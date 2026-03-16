@@ -1,13 +1,18 @@
-package app
+package python
 
 import (
+	"github.com/pusherofbrooms/codesieve/internal/parser/core"
 	tspython "github.com/pusherofbrooms/codesieve/internal/tslang/python"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-func parsePythonTreeSitter(content []byte) ([]Symbol, error) {
-	return parseWithTreeSitter(content, treesitter.NewLanguage(tspython.Language()), func(root *treesitter.Node) []Symbol {
-		var symbols []Symbol
+const Name = "python"
+
+var Extensions = []string{".py"}
+
+func Parse(_ string, content []byte) ([]core.Symbol, error) {
+	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tspython.Language()), func(root *treesitter.Node) []core.Symbol {
+		var symbols []core.Symbol
 		var walk func(node *treesitter.Node, container string)
 		walk = func(node *treesitter.Node, container string) {
 			if node == nil {
@@ -25,15 +30,15 @@ func parsePythonTreeSitter(content []byte) ([]Symbol, error) {
 			case "class_definition":
 				nameNode := node.ChildByFieldName("name")
 				if nameNode != nil {
-					name := nodeText(nameNode, content)
-					symbols = append(symbols, makeSymbol(content, node, name, name, "class"))
+					name := core.NodeText(nameNode, content)
+					symbols = append(symbols, core.MakeSymbol(content, node, name, name, "class"))
 					walk(node.ChildByFieldName("body"), name)
 					return
 				}
 			case "function_definition", "async_function_definition":
 				nameNode := node.ChildByFieldName("name")
 				if nameNode != nil {
-					name := nodeText(nameNode, content)
+					name := core.NodeText(nameNode, content)
 					kind := "function"
 					qualified := name
 					parent := ""
@@ -42,9 +47,9 @@ func parsePythonTreeSitter(content []byte) ([]Symbol, error) {
 						qualified = container + "." + name
 						parent = container
 					}
-					sym := makeSymbol(content, node, name, qualified, kind)
+					sym := core.MakeSymbol(content, node, name, qualified, kind)
 					sym.ParentID = parent
-					sym.Signature = pythonSignature(node, content)
+					sym.Signature = core.PythonSignature(node, content)
 					symbols = append(symbols, sym)
 					walk(node.ChildByFieldName("body"), "")
 					return
@@ -55,7 +60,7 @@ func parsePythonTreeSitter(content []byte) ([]Symbol, error) {
 			}
 		}
 		walk(root, "")
-		sortSymbols(symbols)
+		core.SortSymbols(symbols)
 		return symbols
 	})
 }

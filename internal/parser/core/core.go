@@ -1,4 +1,4 @@
-package app
+package core
 
 import (
 	"fmt"
@@ -9,7 +9,22 @@ import (
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-func parseWithTreeSitter(content []byte, language *treesitter.Language, extract func(root *treesitter.Node) []Symbol) ([]Symbol, error) {
+type Symbol struct {
+	Name          string
+	QualifiedName string
+	Kind          string
+	ParentID      string
+	Signature     string
+	Documentation string
+	StartLine     int
+	EndLine       int
+	StartByte     int
+	EndByte       int
+	Language      string
+	FilePath      string
+}
+
+func ParseWithTreeSitter(content []byte, language *treesitter.Language, extract func(root *treesitter.Node) []Symbol) ([]Symbol, error) {
 	parser := treesitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(language); err != nil {
@@ -27,25 +42,25 @@ func parseWithTreeSitter(content []byte, language *treesitter.Language, extract 
 	return extract(root), nil
 }
 
-func appendNamedNode(symbols *[]Symbol, node *treesitter.Node, content []byte, fieldName, kind string) {
+func AppendNamedNode(symbols *[]Symbol, node *treesitter.Node, content []byte, fieldName, kind string) {
 	nameNode := node.ChildByFieldName(fieldName)
 	if nameNode == nil {
 		return
 	}
-	name := nodeText(nameNode, content)
-	sym := makeSymbol(content, node, name, name, kind)
-	sym.Signature = signatureFromNode(node, content)
+	name := NodeText(nameNode, content)
+	sym := MakeSymbol(content, node, name, name, kind)
+	sym.Signature = SignatureFromNode(node, content)
 	*symbols = append(*symbols, sym)
 }
 
-func makeSymbol(content []byte, node *treesitter.Node, name, qualifiedName, kind string) Symbol {
+func MakeSymbol(content []byte, node *treesitter.Node, name, qualifiedName, kind string) Symbol {
 	start := node.StartPosition()
 	end := node.EndPosition()
 	return Symbol{
 		Name:          name,
 		QualifiedName: qualifiedName,
 		Kind:          kind,
-		Signature:     signatureFromNode(node, content),
+		Signature:     SignatureFromNode(node, content),
 		StartLine:     int(start.Row) + 1,
 		EndLine:       int(end.Row) + 1,
 		StartByte:     int(node.StartByte()),
@@ -53,11 +68,11 @@ func makeSymbol(content []byte, node *treesitter.Node, name, qualifiedName, kind
 	}
 }
 
-func signatureFromNode(node *treesitter.Node, content []byte) string {
+func SignatureFromNode(node *treesitter.Node, content []byte) string {
 	if node == nil {
 		return ""
 	}
-	text := nodeText(node, content)
+	text := NodeText(node, content)
 	if idx := strings.IndexByte(text, '\n'); idx >= 0 {
 		text = text[:idx]
 	}
@@ -66,19 +81,19 @@ func signatureFromNode(node *treesitter.Node, content []byte) string {
 	return strings.TrimSpace(text)
 }
 
-func pythonSignature(node *treesitter.Node, content []byte) string {
-	text := signatureFromNode(node, content)
+func PythonSignature(node *treesitter.Node, content []byte) string {
+	text := SignatureFromNode(node, content)
 	return strings.TrimSuffix(text, ":")
 }
 
-func nodeText(node *treesitter.Node, content []byte) string {
+func NodeText(node *treesitter.Node, content []byte) string {
 	if node == nil {
 		return ""
 	}
 	return strings.TrimSpace(node.Utf8Text(content))
 }
 
-func sortSymbols(symbols []Symbol) {
+func SortSymbols(symbols []Symbol) {
 	sort.Slice(symbols, func(i, j int) bool {
 		if symbols[i].StartLine == symbols[j].StartLine {
 			return symbols[i].Name < symbols[j].Name
@@ -87,7 +102,7 @@ func sortSymbols(symbols []Symbol) {
 	})
 }
 
-func renderGoFuncSignature(fn *ast.FuncDecl) string {
+func RenderGoFuncSignature(fn *ast.FuncDecl) string {
 	params := []string{}
 	if fn.Type.Params != nil {
 		for _, p := range fn.Type.Params.List {
@@ -123,6 +138,16 @@ func renderGoFuncSignature(fn *ast.FuncDecl) string {
 	return sig
 }
 
+func RecvType(expr ast.Expr) string {
+	if star, ok := expr.(*ast.StarExpr); ok {
+		return RecvType(star.X)
+	}
+	if ident, ok := expr.(*ast.Ident); ok {
+		return ident.Name
+	}
+	return exprString(expr)
+}
+
 func exprString(expr ast.Expr) string {
 	switch v := expr.(type) {
 	case *ast.Ident:
@@ -140,14 +165,4 @@ func exprString(expr ast.Expr) string {
 	default:
 		return "any"
 	}
-}
-
-func recvType(expr ast.Expr) string {
-	if star, ok := expr.(*ast.StarExpr); ok {
-		return recvType(star.X)
-	}
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name
-	}
-	return exprString(expr)
 }
