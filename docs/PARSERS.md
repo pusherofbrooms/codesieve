@@ -37,18 +37,18 @@ Local wrappers live under:
 - `internal/tslang/javascript`
 - `internal/tslang/typescript`
 
-Application parser code lives under `internal/app/`.
+Application parser code lives under `internal/parser/`.
 
 ## Adding a new Tree-sitter-backed language
 
 1. Pick the official upstream grammar repository and version.
 2. Vendor the required grammar sources under `third_party/`.
 3. Add a local wrapper in `internal/tslang/<language>/` that exposes a small `Language()` function or variant functions.
-4. Register the language in `internal/app/parser_registry.go`:
+4. Implement symbol extraction in `internal/parser/languages/<language>/`.
+5. Register the language in `internal/parser/registry.go`:
    - language name
    - supported file extensions
    - parser function
-5. Implement symbol extraction in a dedicated parser file in `internal/app/`.
 6. Add parser tests and, if needed, fixture coverage.
 7. Validate the full build and test flow.
 

@@ -10,6 +10,7 @@ import (
 )
 
 type Symbol struct {
+	ID            string
 	Name          string
 	QualifiedName string
 	Kind          string

@@ -436,7 +436,7 @@ To keep language additions cheap and consistent, the implementation should inclu
    - Let each language expose a small spec (language name, extensions, parser function).
    - Avoid one large monolithic parser registration file over time.
 
-2. **Shared parser contract**
+2. **Shared parser contract** *(done)*
    - Use one consistent parser function contract across languages.
    - Keep normalization and symbol finalization in shared code instead of per-language duplication.
 

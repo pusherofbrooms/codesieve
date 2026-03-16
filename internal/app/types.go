@@ -1,5 +1,7 @@
 package app
 
+import "github.com/pusherofbrooms/codesieve/internal/parser"
+
 type CodedError struct {
 	Code    string
 	Message string
@@ -183,18 +185,4 @@ type ShowFileResult struct {
 	Content   string `json:"content"`
 }
 
-type Symbol struct {
-	ID            string
-	Name          string
-	QualifiedName string
-	Kind          string
-	ParentID      string
-	Signature     string
-	Documentation string
-	StartLine     int
-	EndLine       int
-	StartByte     int
-	EndByte       int
-	Language      string
-	FilePath      string
-}
+type Symbol = parser.Symbol

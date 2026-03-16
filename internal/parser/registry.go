@@ -12,10 +12,14 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
 )
 
+type Symbol = core.Symbol
+
+type ParseFunc func(path string, content []byte) ([]Symbol, error)
+
 type Spec struct {
 	Name       string
 	Extensions []string
-	Parse      func(path string, content []byte) ([]core.Symbol, error)
+	Parse      ParseFunc
 }
 
 var specs = []Spec{
@@ -41,7 +45,7 @@ func DetectLanguage(path string) string {
 	return spec.Name
 }
 
-func ParseSymbols(path string, content []byte) ([]core.Symbol, string, error) {
+func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
 	spec := specForPath(path)
 	if spec == nil {
 		return nil, "", nil
