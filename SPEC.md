@@ -96,9 +96,10 @@ The extension should be treated as a thin convenience layer for `pi`, not as a s
 `codesieve` v1 succeeds if an agent can:
 
 - index a local repository
+- get a compact repo-level outline before deep reads
 - find likely symbols quickly
 - inspect file structure without reading the whole file
-- retrieve exact symbol source by ID
+- retrieve exact symbol source by ID (single and batch)
 - retrieve a precise file slice by line range
 - fall back to text search when symbol search is insufficient
 - do all of the above through a small, consistent CLI
@@ -204,12 +205,15 @@ Examples:
 ```bash
 codesieve search text "jwt secret"
 codesieve search text "AUTH_HEADER"
+codesieve search text "token.*expires" --regex --context-lines=2
 ```
 
 Minimal flags:
 
 - `--lang`
 - `--limit`
+- `--regex`
+- `--context-lines`
 - `--json`
 
 Result fields:
@@ -218,6 +222,7 @@ Result fields:
 - line
 - snippet
 - match range if available
+- optional context lines before/after
 
 ### `codesieve outline <file>`
 
@@ -238,8 +243,7 @@ Output should include:
 
 - file path
 - language
-- top-level symbols
-- nested symbols when cheap to extract
+- hierarchical symbols (top-level and nested)
 - line ranges
 - symbol ids
 
@@ -258,6 +262,7 @@ Minimal flags:
 
 - `--context N`
 - `--content-only`
+- `--verify`
 - `--json`
 
 Output should include:
@@ -269,6 +274,48 @@ Output should include:
 - line range
 - source content
 - signature if available
+- optional verification result when `--verify` is used
+
+### `codesieve show symbols <id...>`
+
+Return exact source and metadata for multiple symbols in one call.
+
+Examples:
+
+```bash
+codesieve show symbols <id-1> <id-2>
+```
+
+Minimal flags:
+
+- `--content-only`
+- `--json`
+
+Output should include:
+
+- symbols list with per-symbol source
+- per-id errors for unknown IDs
+
+### `codesieve repo outline`
+
+Return a compact repository overview.
+
+Examples:
+
+```bash
+codesieve repo outline
+```
+
+Minimal flags:
+
+- `--json`
+
+Output should include:
+
+- language breakdown
+- top-level directory counts
+- symbol kind counts
+- index age or staleness hint when cheap to compute
 
 ### `codesieve show file <path>`
 
@@ -292,6 +339,15 @@ Output should include:
 - requested line range
 - source content
 
+### Milestone 3 optional commands
+
+If promoted by the milestone rule, keep additions narrow:
+
+- `codesieve find importers <file>`
+- `codesieve module summary <path-or-module>`
+
+Both should remain local, deterministic, and parser-driven (no AI dependency).
+
 ---
 
 ## Command design rules
@@ -312,11 +368,12 @@ The CLI should follow these rules:
 The intended agent workflow is:
 
 1. `codesieve index <path>`
-2. `codesieve search symbol <query>`
-3. `codesieve outline <file>` if more structure is needed
-4. `codesieve show symbol <id>` for exact source
-5. `codesieve search text <query>` only when structural search is not enough
-6. `codesieve show file <path> --start-line --end-line` as a final fallback
+2. `codesieve repo outline` for a cheap high-level map
+3. `codesieve search symbol <query>`
+4. `codesieve outline <file>` if more structure is needed
+5. `codesieve show symbol <id>` or `codesieve show symbols <id...>` for exact source
+6. `codesieve search text <query>` only when structural search is not enough
+7. `codesieve show file <path> --start-line --end-line` as a final fallback
 
 This workflow should be documented for agents and supported cleanly by the CLI.
 
@@ -417,8 +474,11 @@ Responsibilities:
 - search symbols
 - search text
 - build file outlines
+- build repo outline summaries
 - retrieve exact symbol content
+- retrieve multiple symbols in one call
 - retrieve file slices
+- optionally resolve lightweight importer relationships
 
 ---
 
@@ -638,8 +698,11 @@ Deliver:
 
 Deliver:
 
-- `search text`
+- `search text` with optional regex and context lines
 - `show file` with line ranges
+- `show symbols` batch symbol retrieval
+- hierarchical `outline` JSON output
+- `repo outline`
 - incremental reindexing via file hashing
 - diagnostics for skipped and failed files
 - improved ranking quality
@@ -648,6 +711,8 @@ Deliver:
 
 Deliver only if clearly needed:
 
+- `find importers` based on lightweight import extraction
+- package/module summaries derived from indexed symbols (non-AI)
 - broader language coverage
 - improved parsing fidelity
 - limited semantic enrichment if it measurably improves agent retrieval

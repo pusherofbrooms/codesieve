@@ -34,9 +34,8 @@ Note: a thin `pi` extension is explicitly allowed as a companion deliverable and
 
 ### Retrieval enhancements
 
-- graph navigation
-- impact analysis
-- package/module summaries
+- graph navigation beyond lightweight importer lookup
+- impact analysis beyond lightweight importer lookup
 - rename tracking
 - advanced stable ID aliasing
 - embeddings or rerankers
@@ -48,6 +47,13 @@ Note: a thin `pi` extension is explicitly allowed as a companion deliverable and
 - interactive browsing
 - team/org workflows
 - collaborative cache sharing
+
+## Promoted into conditional scope in `SPEC.md`
+
+These are no longer fully deferred. They are allowed in Milestone 3 when they remain local, deterministic, and measurably useful for agent retrieval:
+
+- lightweight `find importers` (parser-driven import relationships)
+- package/module summaries derived from indexed symbols (non-AI)
 
 ## Rule for promoting an item into scope
 
