@@ -27,7 +27,7 @@ For command/flag reference:
 
 ### Go install (remote)
 
-Once the module path and upstream repository are aligned, install from GitHub:
+Install from GitHub:
 
 ```bash
 go install github.com/pusherofbrooms/codesieve/cmd/codesieve@latest
