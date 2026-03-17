@@ -146,6 +146,10 @@ codesieve search text "token.*expires" --regex --context-lines=2 --json
 - `--regex`: treat query as regular expression
 - `--context-lines=<n>`: include surrounding lines in text results
 
+### Symbol search ranking behavior
+
+`search symbol` ranking prefers exact and qualified-name matches and de-prioritizes common non-primary paths (for example tests, vendored code, and generated output directories).
+
 ### Show commands
 
 ```bash

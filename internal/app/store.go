@@ -337,7 +337,7 @@ func (s *Store) searchSymbols(ctx context.Context, repoPath string, opt SearchSy
 		AND (? = '' OR s.language = ?)
 		AND (? = '' OR s.kind = ?)
 		AND (? = '' OR f.path LIKE ?)
-		LIMIT ?`, repoPath, "%"+qFold+"%", "%"+qFold+"%", opt.Lang, opt.Lang, opt.Kind, opt.Kind, opt.PathSubstr, pathLike, opt.Limit*5)
+		LIMIT ?`, repoPath, "%"+qFold+"%", "%"+qFold+"%", opt.Lang, opt.Lang, opt.Kind, opt.Kind, opt.PathSubstr, pathLike, opt.Limit*10)
 	if err != nil {
 		return nil, err
 	}
@@ -488,8 +488,8 @@ func textMatchRange(line string, opt SearchTextOptions, queryFold string, re *re
 }
 
 func rankSymbol(opt SearchSymbolOptions, item storedSymbol) float64 {
-	q := opt.Query
-	if strings.TrimSpace(q) == "" {
+	q := strings.TrimSpace(opt.Query)
+	if q == "" {
 		return 0
 	}
 
@@ -500,14 +500,10 @@ func rankSymbol(opt SearchSymbolOptions, item storedSymbol) float64 {
 		container = qname[:dot]
 	}
 
-	// Case handling
 	nameFold := strings.ToLower(name)
 	qnameFold := strings.ToLower(qname)
 	qFold := strings.ToLower(q)
 
-	matchScore := 0.0
-
-	// Helper for equality under case rules
 	eq := func(a, b string) bool {
 		if opt.CaseSensitive {
 			return a == b
@@ -515,28 +511,29 @@ func rankSymbol(opt SearchSymbolOptions, item storedSymbol) float64 {
 		return strings.EqualFold(a, b)
 	}
 
-	// Name / qualified name matching tiers
+	queryLooksQualified := strings.Contains(q, ".") || strings.Contains(q, "(")
+	matchScore := 0.0
 	switch {
-	case eq(name, q):
-		matchScore = 100
 	case eq(qname, q):
+		matchScore = 130
+	case eq(name, q):
+		matchScore = 120
+	case !opt.CaseSensitive && strings.HasPrefix(qnameFold, qFold):
 		matchScore = 95
 	case !opt.CaseSensitive && strings.HasPrefix(nameFold, qFold):
-		matchScore = 80
-	case !opt.CaseSensitive && strings.HasPrefix(qnameFold, qFold):
-		matchScore = 70
-	case opt.CaseSensitive && strings.HasPrefix(name, q):
-		matchScore = 80
+		matchScore = 90
 	case opt.CaseSensitive && strings.HasPrefix(qname, q):
-		matchScore = 70
-	case !opt.CaseSensitive && strings.Contains(nameFold, qFold):
-		matchScore = 60
+		matchScore = 95
+	case opt.CaseSensitive && strings.HasPrefix(name, q):
+		matchScore = 90
 	case !opt.CaseSensitive && strings.Contains(qnameFold, qFold):
-		matchScore = 50
-	case opt.CaseSensitive && strings.Contains(name, q):
-		matchScore = 60
+		matchScore = 75
+	case !opt.CaseSensitive && strings.Contains(nameFold, qFold):
+		matchScore = 70
 	case opt.CaseSensitive && strings.Contains(qname, q):
-		matchScore = 50
+		matchScore = 75
+	case opt.CaseSensitive && strings.Contains(name, q):
+		matchScore = 70
 	}
 
 	if matchScore == 0 {
@@ -544,44 +541,65 @@ func rankSymbol(opt SearchSymbolOptions, item storedSymbol) float64 {
 	}
 
 	score := matchScore
+	if queryLooksQualified {
+		score += 8
+	}
 
-	// Kind weighting
 	switch strings.ToLower(item.Kind) {
-	case "function", "func", "method":
+	case "function", "func", "method", "constructor":
 		score += 15
-	case "class", "struct", "interface":
+	case "class", "struct", "interface", "record":
 		score += 10
 	case "enum", "type", "type_alias":
 		score += 5
 	}
 
-	// Container/context hints
+	if strings.TrimSpace(opt.Kind) != "" && strings.EqualFold(item.Kind, opt.Kind) {
+		score += 8
+	}
+
 	if container != "" {
-		if eq(container, q) {
-			score += 10
-		} else if !opt.CaseSensitive && strings.HasPrefix(strings.ToLower(container), qFold) {
-			score += 5
-		} else if opt.CaseSensitive && strings.HasPrefix(container, q) {
-			score += 5
+		queryContainer := queryContainerPart(q)
+		if queryContainer != "" {
+			if eq(container, queryContainer) {
+				score += 14
+			} else if !opt.CaseSensitive && strings.HasPrefix(strings.ToLower(container), strings.ToLower(queryContainer)) {
+				score += 6
+			} else if opt.CaseSensitive && strings.HasPrefix(container, queryContainer) {
+				score += 6
+			}
 		}
 	}
 
-	// Path heuristics
-	path := item.FilePath
-	pathFold := strings.ToLower(path)
-	if strings.HasPrefix(path, "vendor/") || strings.HasPrefix(path, "third_party/") {
-		score -= 15
+	pathFold := strings.ToLower(item.FilePath)
+	if strings.HasPrefix(pathFold, "vendor/") || strings.HasPrefix(pathFold, "third_party/") || strings.Contains(pathFold, "/node_modules/") {
+		score -= 22
 	}
-	if strings.HasSuffix(path, "_test.go") || strings.Contains(pathFold, "/test/") || strings.Contains(pathFold, "/tests/") {
-		score -= 10
+	if strings.Contains(pathFold, "/generated/") || strings.Contains(pathFold, "/gen/") || strings.Contains(pathFold, "/dist/") || strings.Contains(pathFold, "/build/") || strings.Contains(pathFold, "/target/") {
+		score -= 12
 	}
-	if strings.HasPrefix(path, "src/") || strings.HasPrefix(path, "internal/") {
-		score += 5
+	if strings.HasSuffix(pathFold, "_test.go") || strings.Contains(pathFold, "/test/") || strings.Contains(pathFold, "/tests/") || strings.Contains(pathFold, "/src/test/") {
+		score -= 18
+	}
+	if strings.HasPrefix(pathFold, "src/") || strings.HasPrefix(pathFold, "internal/") || strings.HasPrefix(pathFold, "cmd/") || strings.HasPrefix(pathFold, "pkg/") {
+		score += 8
+	}
+	if strings.Contains(pathFold, "/src/main/") {
+		score += 8
 	}
 
-	// Slight preference for earlier definitions
 	score += 1.0 / float64(item.StartLine+1)
 	return score
+}
+
+func queryContainerPart(q string) string {
+	if idx := strings.LastIndex(q, "("); idx > 0 {
+		q = q[:idx]
+	}
+	if dot := strings.LastIndex(q, "."); dot > 0 {
+		return q[:dot]
+	}
+	return ""
 }
 
 func (s *Store) listFileSymbols(ctx context.Context, repoPath, relPath string) ([]storedSymbol, error) {
