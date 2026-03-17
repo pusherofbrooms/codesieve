@@ -46,6 +46,9 @@ func SupportedLanguages() []string {
 }
 
 func DetectLanguage(path string) string {
+	if isTerraformJSONPath(path) {
+		return hcl.Name
+	}
 	spec := specForPath(path)
 	if spec == nil {
 		return ""
@@ -54,6 +57,9 @@ func DetectLanguage(path string) string {
 }
 
 func DetectLanguageWithContent(path string, content []byte) string {
+	if isTerraformJSONPath(path) {
+		return hcl.Name
+	}
 	spec := specForPath(path)
 	if spec != nil {
 		return spec.Name
@@ -111,4 +117,9 @@ func isBashShebang(content []byte) bool {
 	}
 	line = strings.ToLower(line)
 	return strings.Contains(line, "bash")
+}
+
+func isTerraformJSONPath(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	return strings.HasSuffix(base, ".tf.json") || strings.HasSuffix(base, ".tfvars.json")
 }

@@ -51,6 +51,8 @@ Local wrappers live under:
 
 Application parser code lives under `internal/parser/`.
 
+For Terraform/OpenTofu, `codesieve` recognizes `.tf`, `.tfvars`, `.hcl`, `.tf.json`, and `.tfvars.json`.
+
 Shared Tree-sitter extraction helpers (for common traversal and symbol-shape patterns) live under `internal/parser/core/`.
 
 For TypeScript and JavaScript, shared extraction logic lives under `internal/parser/languages/tsjs/` to avoid duplicated walkers.

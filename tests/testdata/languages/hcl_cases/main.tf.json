@@ -1,0 +1,19 @@
+{
+  "variable": {
+    "aws_region": {
+      "default": "us-east-1"
+    }
+  },
+  "resource": {
+    "aws_s3_bucket": {
+      "app": {
+        "bucket": "codesieve-app"
+      }
+    }
+  },
+  "output": {
+    "bucket_name": {
+      "value": "${resource.aws_s3_bucket.app.bucket}"
+    }
+  }
+}

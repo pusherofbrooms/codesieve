@@ -42,6 +42,8 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		{path: "main.tf", want: "hcl"},
 		{path: "inputs.tfvars", want: "hcl"},
 		{path: "terragrunt.hcl", want: "hcl"},
+		{path: "main.tf.json", want: "hcl"},
+		{path: "env.tfvars.json", want: "hcl"},
 		{path: "template.json", want: "json"},
 		{path: "script.sh", want: "bash"},
 		{path: "script.bash", want: "bash"},

@@ -76,6 +76,12 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			if name == ".git" || name == ".direnv" {
 				return filepath.SkipDir
 			}
+			if rel != "." && isGeneratedArtifactPath(rel, true) {
+				d := Diagnostic{Code: "SKIPPED_ARTIFACT", Path: rel}
+				res.FilesSkipped = append(res.FilesSkipped, d)
+				_ = s.store.addDiagnostic(ctx, repoID, d)
+				return filepath.SkipDir
+			}
 			if rel != "." && ig != nil && (ig.MatchesPath(rel) || ig.MatchesPath(rel+"/")) {
 				d := Diagnostic{Code: "SKIPPED_IGNORED", Path: rel}
 				res.FilesSkipped = append(res.FilesSkipped, d)
@@ -89,6 +95,12 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		}
 		if ig != nil && ig.MatchesPath(rel) {
 			d := Diagnostic{Code: "SKIPPED_IGNORED", Path: rel}
+			res.FilesSkipped = append(res.FilesSkipped, d)
+			_ = s.store.addDiagnostic(ctx, repoID, d)
+			return nil
+		}
+		if isGeneratedArtifactPath(rel, false) {
+			d := Diagnostic{Code: "SKIPPED_ARTIFACT", Path: rel}
 			res.FilesSkipped = append(res.FilesSkipped, d)
 			_ = s.store.addDiagnostic(ctx, repoID, d)
 			return nil

@@ -131,9 +131,11 @@ Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Bash
 
 For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.md`.
 
-## Secret path skipping
+## Secret path and artifact skipping
 
 `codesieve index` skips common secret-like paths (for example `.env`, key/cert files, and names containing `secret` outside doc extensions) and records `SKIPPED_SECRET` diagnostics.
+
+It also skips common Terraform/OpenTofu generated artifacts (`.terraform/`, `*.tfstate`, `*.tfstate.backup`) and records `SKIPPED_ARTIFACT` diagnostics.
 
 You can add custom skip globs with:
 
