@@ -15,6 +15,7 @@ Use:
 - `nix build` to build the current project.
 - If a new dependency is needed, propose a change to flake.nix.
 
+Before any nix build or nix flake check, ensure all newly created files are tracked (git add -A).
 You don't have access to a PTY, so no interactive nix shell.
 
 - No old-style Nix commands (`nix-env`, `nix-shell`, `nix-channel`, etc.)
