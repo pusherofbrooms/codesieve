@@ -7,6 +7,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+- C# language support (`.cs`, `.csx`) via vendored `tree-sitter-c-sharp` grammar, including symbol extraction for namespaces, imports, types, members, and overload-aware methods.
+
 ## [0.1.0] - 2026-03-17
 
 ### Added
