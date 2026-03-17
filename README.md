@@ -45,6 +45,8 @@ go build -o codesieve ./cmd/codesieve
 go install ./cmd/codesieve
 ```
 
+For storage and environment variable configuration (including `CODESIEVE_DB_PATH` and repo-local `.gitignore` guidance), see [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
+
 ### Build/run with Nix
 
 This repo ships a Nix flake.
