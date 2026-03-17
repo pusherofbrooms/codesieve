@@ -7,40 +7,20 @@ This page collects runtime configuration for `codesieve`.
 `codesieve` stores index data in SQLite.
 
 - Default path: `~/.codesieve/index.db`
-- Override with: `CODESIEVE_DB_PATH`
+- Override path with `CODESIEVE_DB_PATH`
 
-Example:
+Examples:
 
 ```bash
 CODESIEVE_DB_PATH=/tmp/codesieve.db codesieve index . --json
+CODESIEVE_DB_PATH=.codesieve.db codesieve index . --json
 ```
 
-### Shared user-level DB (default)
-
-By default, one user-level DB stores many repositories.
-
-- each repository is tracked by normalized absolute path
-- indexing updates only the matching repository records
-- queries are scoped to your current working repository
-
-This is the simplest setup and usually needs no `.gitignore` changes.
-
-### Repo-local DBs
-
-If you set `CODESIEVE_DB_PATH` to a file inside a repository (common in CI or per-project isolation), add it to `.gitignore`.
-
-Suggested patterns:
+If you use a repo-local DB path, add an ignore rule:
 
 ```gitignore
-# codesieve local indexes
 .codesieve*.db
 *.codesieve.db
-```
-
-Example repo-local usage:
-
-```bash
-CODESIEVE_DB_PATH=.codesieve.db codesieve index . --json
 ```
 
 ## Secret path skip patterns
