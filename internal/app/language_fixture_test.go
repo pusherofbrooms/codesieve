@@ -70,6 +70,20 @@ func TestLanguageFixturesFollowStandardContract(t *testing.T) {
 			queryQualified:   "Client.login",
 			showContains:     "login(token: string)",
 		},
+		{
+			name:             "bash",
+			fixtureDir:       "tests/testdata/languages/bash",
+			filePath:         "basic.sh",
+			expectedLanguage: "bash",
+			topName:          "script:basic.sh",
+			topKind:          "script",
+			childName:        "login",
+			childKind:        "function",
+			query:            "login",
+			queryKind:        "function",
+			queryQualified:   "login",
+			showContains:     "login()",
+		},
 	}
 
 	for _, tc := range cases {

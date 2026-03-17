@@ -116,13 +116,16 @@ function logout {
 	if lang != "bash" {
 		t.Fatalf("lang = %q", lang)
 	}
-	if len(syms) != 2 {
-		t.Fatalf("expected 2 symbols, got %d (%+v)", len(syms), syms)
+	if len(syms) != 3 {
+		t.Fatalf("expected 3 symbols, got %d (%+v)", len(syms), syms)
 	}
-	if syms[0].Name != "login" || syms[0].Kind != "function" {
-		t.Fatalf("unexpected first symbol: %+v", syms[0])
+	if syms[0].Name != "script:script.sh" || syms[0].Kind != "script" {
+		t.Fatalf("unexpected script symbol: %+v", syms[0])
 	}
-	if syms[1].Name != "logout" || syms[1].Kind != "function" {
-		t.Fatalf("unexpected second symbol: %+v", syms[1])
+	if syms[1].Name != "login" || syms[1].Kind != "function" || syms[1].ParentID != "script:script.sh" {
+		t.Fatalf("unexpected first function symbol: %+v", syms[1])
+	}
+	if syms[2].Name != "logout" || syms[2].Kind != "function" || syms[2].ParentID != "script:script.sh" {
+		t.Fatalf("unexpected second function symbol: %+v", syms[2])
 	}
 }
