@@ -2,11 +2,10 @@ package yaml
 
 import (
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/structured/cfn"
 	tsyaml "github.com/pusherofbrooms/codesieve/internal/tslang/yaml"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -15,53 +14,15 @@ const Name = "yaml"
 
 var Extensions = []string{".yaml", ".yml"}
 
-var cfnTopLevelKeys = map[string]struct{}{
-	"AWSTemplateFormatVersion": {},
-	"Description":              {},
-	"Metadata":                 {},
-	"Parameters":               {},
-	"Mappings":                 {},
-	"Conditions":               {},
-	"Transform":                {},
-	"Resources":                {},
-	"Outputs":                  {},
-	"Rules":                    {},
-}
-
-var cfnIntrinsicKeySet = map[string]struct{}{
-	"Ref":              {},
-	"Fn::Base64":       {},
-	"Fn::Cidr":         {},
-	"Fn::FindInMap":    {},
-	"Fn::GetAtt":       {},
-	"Fn::GetAZs":       {},
-	"Fn::If":           {},
-	"Fn::ImportValue":  {},
-	"Fn::Join":         {},
-	"Fn::Length":       {},
-	"Fn::Select":       {},
-	"Fn::Split":        {},
-	"Fn::Sub":          {},
-	"Fn::ToJsonString": {},
-	"Fn::Transform":    {},
-	"Fn::And":          {},
-	"Fn::Equals":       {},
-	"Fn::Not":          {},
-	"Fn::Or":           {},
-}
-
-var cfnRefRegex = regexp.MustCompile(`!Ref\s+([A-Za-z0-9._:-]+)`)
-var cfnGetAttRegex = regexp.MustCompile(`!GetAtt\s+([A-Za-z0-9._:-]+)`)
-var cfnSubRefRegex = regexp.MustCompile(`\$\{([A-Za-z0-9._:-]+)\}`)
-
 func Parse(path string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tsyaml.Language()), func(root *treesitter.Node) []core.Symbol {
 		base := filepath.Base(path)
 		rootName := "document:" + base
 		rootKind := "document"
 
-		topPairs := topLevelPairs(root)
-		isCFN := isCloudFormationTemplate(topPairs, content)
+		topPairNodes := topLevelPairs(root)
+		topPairs := toCFNPairs(topPairNodes, content)
+		isCFN := cfn.IsTemplate(topPairs, string(content))
 		if isCFN {
 			rootName = "template:" + base
 			rootKind = "template"
@@ -71,9 +32,21 @@ func Parse(path string, content []byte) ([]core.Symbol, error) {
 		seen := map[string]struct{}{rootName + "#" + rootKind: {}}
 
 		if isCFN {
-			extractCloudFormationSymbols(&symbols, seen, rootName, topPairs, content)
+			cfn.ExtractSymbols(rootName, topPairs, cfn.Ops[*treesitter.Node]{
+				IsZero: func(n *treesitter.Node) bool { return n == nil },
+				PairsFromValue: func(n *treesitter.Node) []cfn.Pair[*treesitter.Node] {
+					return toCFNPairs(mappingPairsFromValue(n), content)
+				},
+				ScalarValue:   func(n *treesitter.Node) string { return scalarValue(n, content) },
+				NodeText:      func(n *treesitter.Node) string { return core.NodeText(n, content) },
+				NamedChildren: namedChildren,
+				MakeSymbol: func(n *treesitter.Node, name, qualified, kind string) core.Symbol {
+					return core.MakeSymbol(content, n, name, qualified, kind)
+				},
+				Emit: func(sym core.Symbol, parent string) { appendUniqueSymbol(&symbols, seen, sym, parent) },
+			})
 		} else {
-			walkGenericPairs(&symbols, seen, rootName, topPairs, nil, content)
+			walkGenericPairs(&symbols, seen, rootName, topPairNodes, nil, content)
 		}
 
 		core.SortSymbols(symbols)
@@ -90,6 +63,32 @@ func topLevelPairs(root *treesitter.Node) []*treesitter.Node {
 		pairs = append(pairs, mappingPairsFromValue(root.NamedChild(i))...)
 	}
 	return pairs
+}
+
+func toCFNPairs(nodes []*treesitter.Node, content []byte) []cfn.Pair[*treesitter.Node] {
+	pairs := make([]cfn.Pair[*treesitter.Node], 0, len(nodes))
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		pairs = append(pairs, cfn.Pair[*treesitter.Node]{
+			Node:  node,
+			Key:   pairKeyName(node, content),
+			Value: node.ChildByFieldName("value"),
+		})
+	}
+	return pairs
+}
+
+func namedChildren(node *treesitter.Node) []*treesitter.Node {
+	if node == nil {
+		return nil
+	}
+	out := make([]*treesitter.Node, 0, node.NamedChildCount())
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		out = append(out, node.NamedChild(i))
+	}
+	return out
 }
 
 func walkGenericPairs(symbols *[]core.Symbol, seen map[string]struct{}, parent string, pairs []*treesitter.Node, path []string, content []byte) {
@@ -139,199 +138,6 @@ func mappingPairs(node *treesitter.Node) []*treesitter.Node {
 		}
 	}
 	return pairs
-}
-
-func isCloudFormationTemplate(pairs []*treesitter.Node, content []byte) bool {
-	top := map[string]bool{}
-	intrinsicCount := 0
-	for _, pair := range pairs {
-		key := pairKeyName(pair, content)
-		if key == "" {
-			continue
-		}
-		top[key] = true
-		if _, ok := cfnIntrinsicKeySet[key]; ok {
-			intrinsicCount++
-		}
-	}
-
-	hasResources := top["Resources"]
-	hasSignal := top["AWSTemplateFormatVersion"] || top["Transform"] || top["Parameters"] || top["Outputs"] || top["Mappings"] || top["Conditions"]
-	if hasResources && hasSignal {
-		return true
-	}
-
-	if hasResources {
-		text := string(content)
-		if strings.Contains(text, "Fn::") || strings.Contains(text, "!Ref") || strings.Contains(text, "!Sub") || strings.Contains(text, "!GetAtt") {
-			return true
-		}
-	}
-
-	count := 0
-	for key := range top {
-		if _, ok := cfnTopLevelKeys[key]; ok {
-			count++
-		}
-	}
-	if count >= 3 {
-		return true
-	}
-	return intrinsicCount > 0 && hasResources
-}
-
-func extractCloudFormationSymbols(symbols *[]core.Symbol, seen map[string]struct{}, rootName string, topPairs []*treesitter.Node, content []byte) {
-	sections := map[string]*treesitter.Node{}
-	for _, pair := range topPairs {
-		key := pairKeyName(pair, content)
-		if key == "" {
-			continue
-		}
-		qualified := key
-		appendUniqueSymbol(symbols, seen, core.MakeSymbol(content, pair, key, qualified, "section"), rootName)
-		sections[key] = pair.ChildByFieldName("value")
-	}
-
-	extractCFNNamedSection(symbols, seen, "Parameters", "parameter", sections["Parameters"], content)
-	extractCFNNamedSection(symbols, seen, "Conditions", "condition", sections["Conditions"], content)
-	extractCFNNamedSection(symbols, seen, "Mappings", "mapping", sections["Mappings"], content)
-	extractCFNOutputs(symbols, seen, sections["Outputs"], content)
-	extractCFNResources(symbols, seen, sections["Resources"], content)
-}
-
-func extractCFNNamedSection(symbols *[]core.Symbol, seen map[string]struct{}, section, kind string, node *treesitter.Node, content []byte) {
-	for _, pair := range mappingPairsFromValue(node) {
-		name := pairKeyName(pair, content)
-		if name == "" {
-			continue
-		}
-		qualified := section + "." + name
-		appendUniqueSymbol(symbols, seen, core.MakeSymbol(content, pair, name, qualified, kind), section)
-		collectCFNRefs(symbols, seen, qualified, pair.ChildByFieldName("value"), content)
-	}
-}
-
-func extractCFNOutputs(symbols *[]core.Symbol, seen map[string]struct{}, node *treesitter.Node, content []byte) {
-	for _, pair := range mappingPairsFromValue(node) {
-		name := pairKeyName(pair, content)
-		if name == "" {
-			continue
-		}
-		qualified := "Outputs." + name
-		appendUniqueSymbol(symbols, seen, core.MakeSymbol(content, pair, name, qualified, "output"), "Outputs")
-		collectCFNRefs(symbols, seen, qualified, pair.ChildByFieldName("value"), content)
-	}
-}
-
-func extractCFNResources(symbols *[]core.Symbol, seen map[string]struct{}, node *treesitter.Node, content []byte) {
-	for _, pair := range mappingPairsFromValue(node) {
-		name := pairKeyName(pair, content)
-		if name == "" {
-			continue
-		}
-		qualified := "Resources." + name
-		resourceSym := core.MakeSymbol(content, pair, name, qualified, "resource")
-		if typ := cloudFormationResourceType(pair.ChildByFieldName("value"), content); typ != "" {
-			resourceSym.Signature = typ
-		}
-		appendUniqueSymbol(symbols, seen, resourceSym, "Resources")
-		collectCFNRefs(symbols, seen, qualified, pair.ChildByFieldName("value"), content)
-	}
-}
-
-func cloudFormationResourceType(node *treesitter.Node, content []byte) string {
-	for _, pair := range mappingPairsFromValue(node) {
-		if pairKeyName(pair, content) != "Type" {
-			continue
-		}
-		return scalarValue(pair.ChildByFieldName("value"), content)
-	}
-	return ""
-}
-
-func collectCFNRefs(symbols *[]core.Symbol, seen map[string]struct{}, parent string, node *treesitter.Node, content []byte) {
-	if node == nil {
-		return
-	}
-	refs := map[string]struct{}{}
-	collectCFNRefsFromNode(node, refs, content)
-	ordered := make([]string, 0, len(refs))
-	for ref := range refs {
-		if ref != "" {
-			ordered = append(ordered, ref)
-		}
-	}
-	sort.Strings(ordered)
-	for _, ref := range ordered {
-		qualified := parent + ".ref." + ref
-		appendUniqueSymbol(symbols, seen, core.MakeSymbol(content, node, ref, qualified, "reference"), parent)
-	}
-}
-
-func collectCFNRefsFromNode(node *treesitter.Node, refs map[string]struct{}, content []byte) {
-	if node == nil {
-		return
-	}
-	if node.Kind() == "block_mapping_pair" || node.Kind() == "flow_pair" {
-		key := pairKeyName(node, content)
-		value := node.ChildByFieldName("value")
-		switch key {
-		case "Ref":
-			if target := scalarValue(value, content); target != "" {
-				refs[target] = struct{}{}
-			}
-		case "Fn::GetAtt":
-			target := scalarValue(value, content)
-			if idx := strings.Index(target, "."); idx > 0 {
-				target = target[:idx]
-			}
-			if target != "" {
-				refs[target] = struct{}{}
-			}
-		case "Fn::Sub":
-			for _, m := range cfnSubRefRegex.FindAllStringSubmatch(core.NodeText(value, content), -1) {
-				if len(m) < 2 {
-					continue
-				}
-				target := m[1]
-				if idx := strings.Index(target, "."); idx > 0 {
-					target = target[:idx]
-				}
-				if target != "" {
-					refs[target] = struct{}{}
-				}
-			}
-		}
-	}
-	text := core.NodeText(node, content)
-	for _, m := range cfnRefRegex.FindAllStringSubmatch(text, -1) {
-		if len(m) > 1 && m[1] != "" {
-			refs[m[1]] = struct{}{}
-		}
-	}
-	for _, m := range cfnGetAttRegex.FindAllStringSubmatch(text, -1) {
-		if len(m) < 2 || m[1] == "" {
-			continue
-		}
-		target := m[1]
-		if idx := strings.Index(target, "."); idx > 0 {
-			target = target[:idx]
-		}
-		refs[target] = struct{}{}
-	}
-	for _, m := range cfnSubRefRegex.FindAllStringSubmatch(text, -1) {
-		if len(m) < 2 || m[1] == "" {
-			continue
-		}
-		target := m[1]
-		if idx := strings.Index(target, "."); idx > 0 {
-			target = target[:idx]
-		}
-		refs[target] = struct{}{}
-	}
-	for i := uint(0); i < node.NamedChildCount(); i++ {
-		collectCFNRefsFromNode(node.NamedChild(i), refs, content)
-	}
 }
 
 func pairKeyName(pair *treesitter.Node, content []byte) string {
