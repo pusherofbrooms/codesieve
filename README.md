@@ -176,7 +176,11 @@ For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.m
 
 ## Secret path and artifact skipping
 
-`codesieve index` skips common secret-like paths (for example `.env`, key/cert files, and names containing `secret` outside doc extensions) and records `SKIPPED_SECRET` diagnostics.
+`codesieve index` skips common secret-like paths and records `SKIPPED_SECRET` diagnostics.
+
+By default (`CODESIEVE_SECRET_PATH_MODE=balanced`), high-confidence secret files are skipped (for example `.env`, key/cert material, and explicit secret patterns), while common source files are not skipped only because their basename contains `secret`.
+
+For stricter behavior, set `CODESIEVE_SECRET_PATH_MODE=strict` to also skip non-doc files whose basename contains `secret`.
 
 It also skips common Terraform/OpenTofu generated artifacts (`.terraform/`, `*.tfstate`, `*.tfstate.backup`) and records `SKIPPED_ARTIFACT` diagnostics.
 
@@ -186,13 +190,14 @@ Other common skip diagnostics during indexing include:
 - `SKIPPED_TOO_LARGE` (exceeded `--max-size`)
 - `SKIPPED_BINARY` (binary file detection)
 
-You can add custom skip globs with:
+You can add custom deny/allow globs with:
 
 ```bash
 CODESIEVE_SECRET_PATH_PATTERNS="*.crt,config/private/*" codesieve index . --json
+CODESIEVE_SECRET_PATH_ALLOW_PATTERNS="config/*secret*.json" codesieve index . --json
 ```
 
-The variable accepts a comma-separated list of glob patterns and is matched case-insensitively against both file basename and relative path.
+These variables accept comma-separated glob patterns and are matched case-insensitively against both file basename and relative path.
 
 ## Agent integration docs
 

@@ -23,18 +23,30 @@ If you use a repo-local DB path, add an ignore rule:
 *.codesieve.db
 ```
 
-## Secret path skip patterns
+## Secret path skip controls
 
-`codesieve index` skips built-in secret-like paths and supports custom globs via:
+`codesieve index` skips built-in secret-like paths and supports custom controls:
 
+- `CODESIEVE_SECRET_PATH_MODE`
+  - `balanced` (default): skip high-confidence secret paths; avoid skipping common source files only because their names contain `secret`
+  - `strict`: also skip non-doc files whose basename contains `secret`
 - `CODESIEVE_SECRET_PATH_PATTERNS`
+  - comma-separated denylist globs (case-insensitive) matched against basename and relative path
+- `CODESIEVE_SECRET_PATH_ALLOW_PATTERNS`
+  - comma-separated allowlist globs (case-insensitive) matched against basename and relative path
+  - only affects soft basename-contains-`secret` heuristics; it does not override hard secret checks (for example `.pem`, `.env`, key/cert files)
 
-The value is a comma-separated list of glob patterns matched case-insensitively against basename and relative path.
-
-Example:
+Examples:
 
 ```bash
+# Add extra deny patterns
 CODESIEVE_SECRET_PATH_PATTERNS="*.crt,config/private/*" codesieve index . --json
+
+# Keep a strict default heuristic
+CODESIEVE_SECRET_PATH_MODE=strict codesieve index . --json
+
+# Allow known-safe config naming while retaining hard secret checks
+CODESIEVE_SECRET_PATH_ALLOW_PATTERNS="config/*secret*.json" codesieve index . --json
 ```
 
 ## Indexing controls (CLI flags)
