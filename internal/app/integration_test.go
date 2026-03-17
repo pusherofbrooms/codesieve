@@ -164,7 +164,15 @@ func TestIndexPersistsRunStats(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)
 
-	repoPath := fixtureRepo(t)
+	fixturePath := fixtureRepo(t)
+	repoPath := filepath.Join(t.TempDir(), "workrepo-run-stats")
+	copyDir(t, fixturePath, repoPath)
+	if err := os.MkdirAll(filepath.Join(repoPath, "ignored"), 0o755); err != nil {
+		t.Fatalf("MkdirAll ignored: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoPath, "ignored", "secret.go"), []byte("package ignored\n\nfunc Hidden() {}\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile ignored/secret.go: %v", err)
+	}
 	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
 		t.Fatalf("first Index error: %v", err)
 	}
