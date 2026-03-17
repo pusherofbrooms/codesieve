@@ -43,14 +43,15 @@ type IndexResult struct {
 }
 
 type FileIndexUpdate struct {
-	RelPath     string
-	Language    string
-	Hash        string
-	SizeBytes   int64
-	ModTimeNS   int64
-	ParseStatus string
-	Content     string
-	Symbols     []Symbol
+	RelPath       string
+	Language      string
+	ParserVersion string
+	Hash          string
+	SizeBytes     int64
+	ModTimeNS     int64
+	ParseStatus   string
+	Content       string
+	Symbols       []Symbol
 }
 
 type SearchSymbolOptions struct {

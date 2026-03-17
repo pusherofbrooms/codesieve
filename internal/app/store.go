@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS files (
   repo_id INTEGER NOT NULL,
   path TEXT NOT NULL,
   language TEXT,
+  parser_version TEXT NOT NULL DEFAULT '',
   hash TEXT NOT NULL,
   size_bytes INTEGER NOT NULL,
   mod_time_ns INTEGER NOT NULL DEFAULT 0,
@@ -122,6 +123,10 @@ CREATE INDEX IF NOT EXISTS idx_index_runs_repo_id_id ON index_runs(repo_id, id D
 	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return err
 	}
+	_, err = s.db.Exec(`ALTER TABLE files ADD COLUMN parser_version TEXT NOT NULL DEFAULT ''`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return err
+	}
 	return nil
 }
 
@@ -159,8 +164,8 @@ func (s *Store) replaceFilesSymbolsBatch(ctx context.Context, repoID int64, upda
 	}
 	defer tx.Rollback()
 
-	upsertFileStmt, err := tx.PrepareContext(ctx, `INSERT INTO files(repo_id, path, language, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
-		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=excluded.content`)
+	upsertFileStmt, err := tx.PrepareContext(ctx, `INSERT INTO files(repo_id, path, language, parser_version, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, parser_version=excluded.parser_version, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=excluded.content`)
 	if err != nil {
 		return err
 	}
@@ -186,7 +191,7 @@ func (s *Store) replaceFilesSymbolsBatch(ctx context.Context, repoID int64, upda
 	defer insertSymbolStmt.Close()
 
 	for _, update := range updates {
-		if _, err := upsertFileStmt.ExecContext(ctx, repoID, update.RelPath, update.Language, update.Hash, update.SizeBytes, update.ModTimeNS, update.ParseStatus, update.Content); err != nil {
+		if _, err := upsertFileStmt.ExecContext(ctx, repoID, update.RelPath, update.Language, update.ParserVersion, update.Hash, update.SizeBytes, update.ModTimeNS, update.ParseStatus, update.Content); err != nil {
 			return err
 		}
 
@@ -244,12 +249,13 @@ func (s *Store) addIndexRun(ctx context.Context, repoID int64, run IndexRunSumma
 }
 
 type indexedFile struct {
-	Path        string
-	Hash        string
-	SizeBytes   int64
-	ModTimeNS   int64
-	Language    string
-	ParseStatus string
+	Path          string
+	Hash          string
+	SizeBytes     int64
+	ModTimeNS     int64
+	Language      string
+	ParserVersion string
+	ParseStatus   string
 }
 
 type storedSymbol struct {
@@ -266,7 +272,7 @@ type storedSymbol struct {
 }
 
 func (s *Store) listIndexedFiles(ctx context.Context, repoID int64) (map[string]indexedFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT path, hash, size_bytes, mod_time_ns, COALESCE(language,''), parse_status FROM files WHERE repo_id = ?`, repoID)
+	rows, err := s.db.QueryContext(ctx, `SELECT path, hash, size_bytes, mod_time_ns, COALESCE(language,''), COALESCE(parser_version,''), parse_status FROM files WHERE repo_id = ?`, repoID)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +280,7 @@ func (s *Store) listIndexedFiles(ctx context.Context, repoID int64) (map[string]
 	out := map[string]indexedFile{}
 	for rows.Next() {
 		var item indexedFile
-		if err := rows.Scan(&item.Path, &item.Hash, &item.SizeBytes, &item.ModTimeNS, &item.Language, &item.ParseStatus); err != nil {
+		if err := rows.Scan(&item.Path, &item.Hash, &item.SizeBytes, &item.ModTimeNS, &item.Language, &item.ParserVersion, &item.ParseStatus); err != nil {
 			return nil, err
 		}
 		out[item.Path] = item

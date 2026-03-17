@@ -73,6 +73,14 @@ func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
 	return syms, spec.Name, err
 }
 
+func LanguageVersion(name string) string {
+	spec := specForName(name)
+	if spec == nil {
+		return ""
+	}
+	return spec.Version
+}
+
 func specForPath(path string) *Spec {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == "" {
@@ -115,6 +123,7 @@ func buildRegistry(specs []Spec) (registryData, error) {
 			return registryData{}, fmt.Errorf("duplicate parser language name %q", name)
 		}
 		s.Name = name
+		s.Version = normalizeVersion(s.Version)
 		s.Extensions = normalizeExtensions(s.Extensions)
 		reg.specs = append(reg.specs, s)
 		stored := &reg.specs[len(reg.specs)-1]
@@ -150,6 +159,14 @@ func normalizeExtensions(in []string) []string {
 		out = append(out, ext)
 	}
 	return out
+}
+
+func normalizeVersion(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "1"
+	}
+	return v
 }
 
 func isBashShebang(content []byte) bool {

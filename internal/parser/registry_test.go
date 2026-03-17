@@ -110,12 +110,24 @@ func TestBuildRegistryNormalizesAndDeduplicatesExtensions(t *testing.T) {
 	if len(reg.specs) != 1 {
 		t.Fatalf("expected 1 spec, got %d", len(reg.specs))
 	}
+	if reg.specs[0].Version != "1" {
+		t.Fatalf("expected default parser version 1, got %q", reg.specs[0].Version)
+	}
 	ext := reg.specs[0].Extensions
 	if len(ext) != 1 || ext[0] != ".sh" {
 		t.Fatalf("unexpected normalized extensions: %v", ext)
 	}
 	if got := reg.byExt[".sh"]; got == nil || got.Name != "shell" {
 		t.Fatalf("byExt lookup failed: %+v", got)
+	}
+}
+
+func TestLanguageVersionReturnsRegisteredVersion(t *testing.T) {
+	if got := LanguageVersion("go"); strings.TrimSpace(got) == "" {
+		t.Fatalf("expected non-empty language version for go")
+	}
+	if got := LanguageVersion("does-not-exist"); got != "" {
+		t.Fatalf("expected empty version for unknown language, got %q", got)
 	}
 }
 

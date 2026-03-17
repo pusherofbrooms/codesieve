@@ -137,6 +137,8 @@ codesieve index . --json --no-gitignore --max-files=20000 --max-size=2097152
 - `--max-files=<n>`: cap discovered file count
 - `--max-size=<bytes>`: cap per-file size for indexing
 
+Incremental indexing is parser-version aware: grammar/parser upgrades can trigger selective reparsing without requiring a full DB wipe.
+
 ### Text search
 
 ```bash

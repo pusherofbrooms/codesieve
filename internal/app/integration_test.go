@@ -160,6 +160,34 @@ func TestIncrementalReindexSkipsUnchanged(t *testing.T) {
 	}
 }
 
+func TestIncrementalReindexWhenParserVersionChanges(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := fixtureRepo(t)
+
+	first, err := svc.Index(ctx, repoPath, IndexOptions{})
+	if err != nil {
+		t.Fatalf("first Index error: %v", err)
+	}
+	if first.FilesIndexed != 3 || first.FilesUpdated != 3 {
+		t.Fatalf("unexpected first index result: %+v", first)
+	}
+
+	repoID := repoIDForPath(t, svc.store.db, repoPath)
+	if _, err := svc.store.db.Exec(`UPDATE files SET parser_version = '' WHERE repo_id = ?`, repoID); err != nil {
+		t.Fatalf("clear parser_version: %v", err)
+	}
+
+	second, err := svc.Index(ctx, repoPath, IndexOptions{})
+	if err != nil {
+		t.Fatalf("second Index error: %v", err)
+	}
+	if second.FilesIndexed != 3 || second.FilesUpdated != 3 || second.FilesUnchanged != 0 {
+		t.Fatalf("expected parser-version mismatch to trigger full file reparse, got %+v", second)
+	}
+}
+
 func TestIndexPersistsRunStats(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)

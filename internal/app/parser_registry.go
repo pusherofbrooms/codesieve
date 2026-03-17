@@ -13,3 +13,7 @@ func DetectLanguageWithContent(path string, content []byte) string {
 func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
 	return parser.ParseSymbols(path, content)
 }
+
+func LanguageVersion(language string) string {
+	return parser.LanguageVersion(language)
+}

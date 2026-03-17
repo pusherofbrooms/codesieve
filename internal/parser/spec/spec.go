@@ -8,6 +8,7 @@ type ParseFunc func(path string, content []byte) ([]Symbol, error)
 
 type Spec struct {
 	Name       string
+	Version    string
 	Extensions []string
 	Parse      ParseFunc
 }

@@ -79,13 +79,23 @@ For TypeScript and JavaScript, shared extraction logic lives under `internal/par
 6. Add parser tests and, if needed, fixture coverage.
 7. Validate the full build and test flow.
 
+## Parser-versioned incremental reindexing
+
+`codesieve` stores a per-file `parser_version` alongside file hash/mtime.
+
+On reindex, unchanged files are skipped **only** when both content and `parser_version` match.
+This lets parser or grammar upgrades trigger targeted reparsing of only affected language files instead of requiring a full DB wipe.
+
+When parser behavior changes for a language, bump that language version in `internal/parser/languages/specs.go`.
+
 ## Updating an existing vendored grammar
 
 1. Select the new upstream version.
 2. Replace the vendored source tree under `third_party/` (prefer `scripts/vendor-grammar`, which auto-prunes to required files).
 3. Confirm wrapper include paths still match the vendored layout.
-4. Re-run formatting and tests.
-5. Recompute `vendorHash` if Nix reports a mismatch.
+4. If symbol extraction behavior can change, bump that language `Version` in `internal/parser/languages/specs.go`.
+5. Re-run formatting and tests.
+6. Recompute `vendorHash` if Nix reports a mismatch.
 
 ## Validation commands
 

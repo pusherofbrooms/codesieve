@@ -133,8 +133,9 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			return nil
 		}
 		seen[rel] = struct{}{}
+		parserVersion := LanguageVersion(lang)
 		if !opt.Force {
-			if prev, ok := existing[rel]; ok && prev.SizeBytes == info.Size() && prev.ModTimeNS == info.ModTime().UnixNano() {
+			if prev, ok := existing[rel]; ok && prev.SizeBytes == info.Size() && prev.ModTimeNS == info.ModTime().UnixNano() && prev.ParserVersion == parserVersion {
 				if prev.ParseStatus == "parse_failed" {
 					d := Diagnostic{Code: "PARSE_FAILED", Path: rel, Message: "parse previously failed (unchanged file)"}
 					res.Warnings = append(res.Warnings, d)
@@ -157,7 +158,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		}
 		hash := sha256hex(content)
 		if !opt.Force {
-			if prev, ok := existing[rel]; ok && prev.Hash == hash {
+			if prev, ok := existing[rel]; ok && prev.Hash == hash && prev.ParserVersion == parserVersion {
 				if prev.ParseStatus == "parse_failed" {
 					d := Diagnostic{Code: "PARSE_FAILED", Path: rel, Message: "parse previously failed (unchanged file)"}
 					res.Warnings = append(res.Warnings, d)
@@ -179,14 +180,15 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		}
 		parsed = finalizeSymbols(repoPath, rel, detectedLang, parsed)
 		pending = append(pending, FileIndexUpdate{
-			RelPath:     rel,
-			Language:    detectedLang,
-			Hash:        hash,
-			SizeBytes:   info.Size(),
-			ModTimeNS:   info.ModTime().UnixNano(),
-			ParseStatus: parseStatus,
-			Content:     string(content),
-			Symbols:     parsed,
+			RelPath:       rel,
+			Language:      detectedLang,
+			ParserVersion: LanguageVersion(detectedLang),
+			Hash:          hash,
+			SizeBytes:     info.Size(),
+			ModTimeNS:     info.ModTime().UnixNano(),
+			ParseStatus:   parseStatus,
+			Content:       string(content),
+			Symbols:       parsed,
 		})
 		if len(pending) >= 128 {
 			if err := flush(); err != nil {
