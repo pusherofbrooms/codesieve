@@ -20,6 +20,7 @@ Write unit tests first for deterministic components:
 - path normalization and safety checks
 - parser normalization
 - symbol extraction
+- per-language parser mapping (language-local `internal/parser/languages/<lang>/*_test.go`)
 - source range slicing
 - ranking basics
 - ID generation
