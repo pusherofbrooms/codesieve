@@ -122,6 +122,7 @@ codesieve show symbols <id-1> <id-2> --json
 - Go
 - Python
 - TypeScript / JavaScript
+- Bash
 
 Go parsing uses the standard library parser. Python and TypeScript/JavaScript use Tree-sitter with vendored grammars for reproducible builds.
 

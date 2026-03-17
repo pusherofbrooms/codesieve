@@ -200,8 +200,8 @@ func TestIndexPersistsRunStats(t *testing.T) {
 	if filesIndexed != 0 || filesUpdated != 0 || filesUnchanged != 3 || filesDeleted != 0 {
 		t.Fatalf("unexpected latest run file stats: indexed=%d updated=%d unchanged=%d deleted=%d", filesIndexed, filesUpdated, filesUnchanged, filesDeleted)
 	}
-	if filesSkipped != 0 {
-		t.Fatalf("expected files_skipped=0 for fixture, got %d", filesSkipped)
+	if filesSkipped != 1 {
+		t.Fatalf("expected files_skipped=1 for fixture (gitignored path), got %d", filesSkipped)
 	}
 	if symbolsExtracted != 0 {
 		t.Fatalf("expected symbols_extracted=0 for unchanged reindex, got %d", symbolsExtracted)

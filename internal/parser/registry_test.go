@@ -9,6 +9,7 @@ func TestSupportedLanguagesIncludesBuiltins(t *testing.T) {
 		"python":     false,
 		"typescript": false,
 		"javascript": false,
+		"bash":       false,
 	}
 
 	for _, name := range names {
@@ -35,6 +36,8 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		{path: "file.tsx", want: "typescript"},
 		{path: "file.js", want: "javascript"},
 		{path: "file.jsx", want: "javascript"},
+		{path: "script.sh", want: "bash"},
+		{path: "script.bash", want: "bash"},
 		{path: "README.md", want: ""},
 	}
 

@@ -97,3 +97,32 @@ export const routes = lazy(() => createRoutes())
 		t.Fatalf("missing expected symbols: %+v", syms)
 	}
 }
+
+func TestParseBashSymbols(t *testing.T) {
+	src := []byte(`#!/usr/bin/env bash
+
+login() {
+  echo "$1"
+}
+
+function logout {
+  echo "bye"
+}
+`)
+	syms, lang, err := ParseSymbols("script.sh", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "bash" {
+		t.Fatalf("lang = %q", lang)
+	}
+	if len(syms) != 2 {
+		t.Fatalf("expected 2 symbols, got %d (%+v)", len(syms), syms)
+	}
+	if syms[0].Name != "login" || syms[0].Kind != "function" {
+		t.Fatalf("unexpected first symbol: %+v", syms[0])
+	}
+	if syms[1].Name != "logout" || syms[1].Kind != "function" {
+		t.Fatalf("unexpected second symbol: %+v", syms[1])
+	}
+}

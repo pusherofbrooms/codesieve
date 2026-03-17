@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
@@ -16,6 +17,7 @@ var (
 	_ ParseFunc = python.Parse
 	_ ParseFunc = typescript.Parse
 	_ ParseFunc = javascript.Parse
+	_ ParseFunc = bash.Parse
 )
 
 func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
@@ -26,6 +28,7 @@ func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
 		{name: "go", path: "tests/testdata/languages/go/basic.go"},
 		{name: "python", path: "tests/testdata/languages/python/basic.py"},
 		{name: "typescript", path: "tests/testdata/languages/typescript/basic.ts"},
+		{name: "bash", path: "tests/testdata/languages/bash/basic.sh"},
 	}
 
 	for _, tc := range tests {
