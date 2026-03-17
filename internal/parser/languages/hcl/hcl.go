@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/filetype"
 	tshcl "github.com/pusherofbrooms/codesieve/internal/tslang/hcl"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -23,7 +24,7 @@ func Parse(path string, content []byte) ([]core.Symbol, error) {
 		file.Signature = ""
 		ex.append(file, "")
 
-		if isTerraformJSONPath(path) {
+		if filetype.IsTerraformJSONPath(path) {
 			extractTerraformJSON(root, rootName, ex)
 		} else {
 			var walk func(node *treesitter.Node, parentID, containerQualified, containerKind string)
@@ -336,9 +337,4 @@ func cleanLabel(in string) string {
 	in = strings.TrimPrefix(in, "'")
 	in = strings.TrimSuffix(in, "'")
 	return strings.TrimSpace(in)
-}
-
-func isTerraformJSONPath(path string) bool {
-	base := strings.ToLower(filepath.Base(path))
-	return strings.HasSuffix(base, ".tf.json") || strings.HasSuffix(base, ".tfvars.json")
 }

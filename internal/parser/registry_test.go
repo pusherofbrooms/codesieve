@@ -1,6 +1,9 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSupportedLanguagesIncludesBuiltins(t *testing.T) {
 	names := SupportedLanguages()
@@ -70,3 +73,46 @@ func TestDetectLanguageWithContentSupportsBashShebang(t *testing.T) {
 		t.Fatalf("DetectLanguageWithContent non-shebang = %q, want empty", got)
 	}
 }
+
+func TestBuildRegistryRejectsDuplicateLanguageNames(t *testing.T) {
+	_, err := buildRegistry([]Spec{
+		{Name: "go", Extensions: []string{".go"}, Parse: noopParse},
+		{Name: "go", Extensions: []string{".gox"}, Parse: noopParse},
+	})
+	if err == nil || !strings.Contains(err.Error(), "duplicate parser language name") {
+		t.Fatalf("expected duplicate language name error, got %v", err)
+	}
+}
+
+func TestBuildRegistryRejectsDuplicateExtensionsAcrossLanguages(t *testing.T) {
+	_, err := buildRegistry([]Spec{
+		{Name: "lang-a", Extensions: []string{".x"}, Parse: noopParse},
+		{Name: "lang-b", Extensions: []string{".x"}, Parse: noopParse},
+	})
+	if err == nil || !strings.Contains(err.Error(), "duplicate parser extension") {
+		t.Fatalf("expected duplicate extension error, got %v", err)
+	}
+}
+
+func TestBuildRegistryNormalizesAndDeduplicatesExtensions(t *testing.T) {
+	reg, err := buildRegistry([]Spec{{
+		Name:       "shell",
+		Extensions: []string{"SH", ".sh", " .SH ", ""},
+		Parse:      noopParse,
+	}})
+	if err != nil {
+		t.Fatalf("buildRegistry error: %v", err)
+	}
+	if len(reg.specs) != 1 {
+		t.Fatalf("expected 1 spec, got %d", len(reg.specs))
+	}
+	ext := reg.specs[0].Extensions
+	if len(ext) != 1 || ext[0] != ".sh" {
+		t.Fatalf("unexpected normalized extensions: %v", ext)
+	}
+	if got := reg.byExt[".sh"]; got == nil || got.Name != "shell" {
+		t.Fatalf("byExt lookup failed: %+v", got)
+	}
+}
+
+func noopParse(string, []byte) ([]Symbol, error) { return nil, nil }

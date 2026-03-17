@@ -1,52 +1,42 @@
 package parser
 
 import (
+	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/filetype"
+	parselanguages "github.com/pusherofbrooms/codesieve/internal/parser/languages"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/hcl"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"
+	"github.com/pusherofbrooms/codesieve/internal/parser/spec"
 )
 
 type Symbol = core.Symbol
 
-type ParseFunc func(path string, content []byte) ([]Symbol, error)
+type ParseFunc = spec.ParseFunc
 
-type Spec struct {
-	Name       string
-	Extensions []string
-	Parse      ParseFunc
+type Spec = spec.Spec
+
+type registryData struct {
+	specs  []Spec
+	byExt  map[string]*Spec
+	byName map[string]*Spec
 }
 
-var specs = []Spec{
-	{Name: golang.Name, Extensions: slices.Clone(golang.Extensions), Parse: golang.Parse},
-	{Name: python.Name, Extensions: slices.Clone(python.Extensions), Parse: python.Parse},
-	{Name: typescript.Name, Extensions: slices.Clone(typescript.Extensions), Parse: typescript.Parse},
-	{Name: javascript.Name, Extensions: slices.Clone(javascript.Extensions), Parse: javascript.Parse},
-	{Name: hcl.Name, Extensions: slices.Clone(hcl.Extensions), Parse: hcl.Parse},
-	{Name: json.Name, Extensions: slices.Clone(json.Extensions), Parse: json.Parse},
-	{Name: bash.Name, Extensions: slices.Clone(bash.Extensions), Parse: bash.Parse},
-	{Name: yaml.Name, Extensions: slices.Clone(yaml.Extensions), Parse: yaml.Parse},
-}
+var registry = mustBuildRegistry(parselanguages.Specs())
 
 func SupportedLanguages() []string {
-	out := make([]string, 0, len(specs))
-	for _, spec := range specs {
+	out := make([]string, 0, len(registry.specs))
+	for _, spec := range registry.specs {
 		out = append(out, spec.Name)
 	}
 	return out
 }
 
 func DetectLanguage(path string) string {
-	if isTerraformJSONPath(path) {
+	if filetype.IsTerraformJSONPath(path) {
 		return hcl.Name
 	}
 	spec := specForPath(path)
@@ -57,7 +47,7 @@ func DetectLanguage(path string) string {
 }
 
 func DetectLanguageWithContent(path string, content []byte) string {
-	if isTerraformJSONPath(path) {
+	if filetype.IsTerraformJSONPath(path) {
 		return hcl.Name
 	}
 	spec := specForPath(path)
@@ -85,25 +75,81 @@ func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
 
 func specForPath(path string) *Spec {
 	ext := strings.ToLower(filepath.Ext(path))
-	for i := range specs {
-		spec := &specs[i]
-		for _, candidate := range spec.Extensions {
-			if ext == candidate {
-				return spec
-			}
-		}
+	if ext == "" {
+		return nil
 	}
-	return nil
+	return registry.byExt[ext]
 }
 
 func specForName(name string) *Spec {
+	if strings.TrimSpace(name) == "" {
+		return nil
+	}
+	return registry.byName[name]
+}
+
+func mustBuildRegistry(specs []Spec) registryData {
+	reg, err := buildRegistry(specs)
+	if err != nil {
+		panic(err)
+	}
+	return reg
+}
+
+func buildRegistry(specs []Spec) (registryData, error) {
+	reg := registryData{
+		specs:  make([]Spec, 0, len(specs)),
+		byExt:  make(map[string]*Spec, len(specs)),
+		byName: make(map[string]*Spec, len(specs)),
+	}
 	for i := range specs {
-		spec := &specs[i]
-		if spec.Name == name {
-			return spec
+		s := specs[i]
+		name := strings.TrimSpace(s.Name)
+		if name == "" {
+			return registryData{}, fmt.Errorf("parser spec has empty name")
+		}
+		if s.Parse == nil {
+			return registryData{}, fmt.Errorf("parser spec %q has nil Parse func", name)
+		}
+		if _, exists := reg.byName[name]; exists {
+			return registryData{}, fmt.Errorf("duplicate parser language name %q", name)
+		}
+		s.Name = name
+		s.Extensions = normalizeExtensions(s.Extensions)
+		reg.specs = append(reg.specs, s)
+		stored := &reg.specs[len(reg.specs)-1]
+		reg.byName[stored.Name] = stored
+		for _, ext := range stored.Extensions {
+			if prev, exists := reg.byExt[ext]; exists {
+				return registryData{}, fmt.Errorf("duplicate parser extension %q for %q and %q", ext, prev.Name, stored.Name)
+			}
+			reg.byExt[ext] = stored
 		}
 	}
-	return nil
+	return reg, nil
+}
+
+func normalizeExtensions(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	seen := map[string]struct{}{}
+	for _, ext := range in {
+		ext = strings.ToLower(strings.TrimSpace(ext))
+		if ext == "" {
+			continue
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		if _, ok := seen[ext]; ok {
+			continue
+		}
+		seen[ext] = struct{}{}
+		out = append(out, ext)
+	}
+	return out
 }
 
 func isBashShebang(content []byte) bool {
@@ -117,9 +163,4 @@ func isBashShebang(content []byte) bool {
 	}
 	line = strings.ToLower(line)
 	return strings.Contains(line, "bash")
-}
-
-func isTerraformJSONPath(path string) bool {
-	base := strings.ToLower(filepath.Base(path))
-	return strings.HasSuffix(base, ".tf.json") || strings.HasSuffix(base, ".tfvars.json")
 }
