@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-usage: scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust]
+usage: scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust|csharp]
 
 Prunes vendored grammar trees down to the files needed by codesieve builds:
 - grammar C sources under src/
@@ -29,7 +29,7 @@ fi
 
 arg="$1"
 
-langs=(python javascript typescript bash hcl yaml json java rust)
+langs=(python javascript typescript bash hcl yaml json java rust csharp)
 
 if [ "$arg" = "all" ]; then
   targets=("${langs[@]}")

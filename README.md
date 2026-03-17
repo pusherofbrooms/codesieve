@@ -177,7 +177,7 @@ codesieve show file path/to/file --start-line=20 --end-line=80 --content-only
 - YAML (including CloudFormation-oriented symbol extraction)
 - JSON (including CloudFormation-oriented symbol extraction)
 
-Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Java, Rust, Bash, Terraform/OpenTofu (HCL), YAML, and JSON use Tree-sitter with vendored grammars for reproducible builds.
+Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Java, Rust, C#, Bash, Terraform/OpenTofu (HCL), YAML, and JSON use Tree-sitter with vendored grammars for reproducible builds.
 
 For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.md`.
 
@@ -214,3 +214,4 @@ For agent-focused guidance:
 - `docs/TESTING.md` (automated testing strategy + optional real-world smoke tests)
 
 To integrate into Claude Code, OpenCode, or Codex, place `SKILL.md` somewhere your coding agent can read.
+

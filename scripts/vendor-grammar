@@ -14,6 +14,7 @@ Known languages:
   json        -> https://github.com/tree-sitter/tree-sitter-json.git
   java        -> https://github.com/tree-sitter/tree-sitter-java.git
   rust        -> https://github.com/tree-sitter/tree-sitter-rust.git
+  csharp      -> https://github.com/tree-sitter/tree-sitter-c-sharp.git
 
 Examples:
   scripts/vendor-grammar bash v0.25.1
@@ -33,6 +34,7 @@ repo_for_language() {
     json) echo "https://github.com/tree-sitter/tree-sitter-json.git" ;;
     java) echo "https://github.com/tree-sitter/tree-sitter-java.git" ;;
     rust) echo "https://github.com/tree-sitter/tree-sitter-rust.git" ;;
+    csharp) echo "https://github.com/tree-sitter/tree-sitter-c-sharp.git" ;;
     *) return 1 ;;
   esac
 }

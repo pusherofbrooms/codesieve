@@ -195,6 +195,51 @@ public class AuthService {
 	}
 }
 
+func TestParseCSharpSymbols(t *testing.T) {
+	src := []byte(`using System;
+
+namespace Sample.Auth;
+
+public class AuthService {
+    private readonly string authHeader = "X-Auth-Header";
+    public string Token { get; init; }
+
+    public AuthService(string token) {
+        Token = token;
+    }
+
+    public bool Login(string user) {
+        return !string.IsNullOrWhiteSpace(user);
+    }
+}
+`)
+	syms, lang, err := parser.ParseSymbols("AuthService.cs", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "csharp" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{
+		"import:System",
+		"namespace:Sample.Auth",
+		"class:AuthService",
+		"field:AuthService.authHeader",
+		"property:AuthService.Token",
+		"constructor:AuthService.AuthService(string)",
+		"method:AuthService.Login(string)",
+	} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
 func TestParseBashSymbols(t *testing.T) {
 	src := []byte(`#!/usr/bin/env bash
 

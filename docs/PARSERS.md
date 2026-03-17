@@ -40,6 +40,7 @@ Vendored grammars live under:
 - `third_party/tree-sitter-typescript`
 - `third_party/tree-sitter-java`
 - `third_party/tree-sitter-rust`
+- `third_party/tree-sitter-csharp`
 - `third_party/tree-sitter-bash`
 - `third_party/tree-sitter-hcl`
 - `third_party/tree-sitter-yaml`
@@ -116,3 +117,4 @@ nix build
 ## Nix note
 
 `flake.nix` uses `proxyVendor = true;` because the official Tree-sitter Go runtime includes C sources and headers that must remain available during the Go build.
+ain available during the Go build.

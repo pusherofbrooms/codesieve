@@ -46,6 +46,8 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		{path: "file.js", want: "javascript"},
 		{path: "file.jsx", want: "javascript"},
 		{path: "AuthService.java", want: "java"},
+		{path: "AuthService.cs", want: "csharp"},
+		{path: "Program.csx", want: "csharp"},
 		{path: "main.tf", want: "hcl"},
 		{path: "inputs.tfvars", want: "hcl"},
 		{path: "terragrunt.hcl", want: "hcl"},
