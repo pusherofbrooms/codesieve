@@ -21,32 +21,32 @@ description: Token-efficient local code indexing and retrieval for coding agents
    codesieve index . --json
    ```
 
-2. Get a cheap repo map:
-
-   ```bash
-   codesieve repo outline --json
-   ```
-
-   Inspect `data.latest_index_run` (status + file counters + duration) to quickly decide whether reindexing is needed.
-
-3. Search symbols first:
+2. Start with symbol search:
 
    ```bash
    codesieve search symbol "<query>" --json
    ```
 
-4. Inspect structure before large reads (hierarchical symbols with nested members):
-
-   ```bash
-   codesieve outline <path/to/file> --json
-   ```
-
-5. Fetch exact symbol source:
+3. Fetch exact symbol source:
 
    ```bash
    codesieve show symbol <symbol-id> --verify --json
    codesieve show symbols <symbol-id-1> <symbol-id-2> --json
    ```
+
+4. Inspect structure when needed (hierarchical symbols with nested members):
+
+   ```bash
+   codesieve outline <path/to/file> --json
+   ```
+
+5. Use repo map when needed (freshness, breadth, distribution):
+
+   ```bash
+   codesieve repo outline --json
+   ```
+
+   Inspect `data.latest_index_run` (status + file counters + duration) to decide whether reindexing is needed.
 
 6. Fallback only when needed:
 
@@ -67,12 +67,12 @@ description: Token-efficient local code indexing and retrieval for coding agents
 
 Use `codesieve --help` to discover uncommon flags and command forms.
 
-## Goal
+## Decision rules (token-efficient by intent)
 
-Default behavior should be:
-
-- repo outline first
-- search symbols second
-- file outline third
-- exact symbol retrieval fourth
-- text search and file slices last
+- Use the fewest calls needed to answer the user question confidently.
+- Stop once you can identify the relevant entrypoint(s) and key downstream component(s).
+- Escalate breadth only when results are ambiguous, conflicting, or clearly incomplete.
+- Prefer higher-signal retrieval first (`search symbol`, `show symbol`) before broad scans.
+- Use `repo outline` for repo-level context (freshness, scale, language/path distribution), not by default for every query.
+- Use `search text` and `show file` as fallback tools when symbol-based retrieval is insufficient.
+- When confidence is low, state uncertainty and run one targeted follow-up query instead of broad exploratory sweeps.
