@@ -11,6 +11,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"
 )
 
 type Symbol = core.Symbol
@@ -29,6 +30,7 @@ var specs = []Spec{
 	{Name: typescript.Name, Extensions: slices.Clone(typescript.Extensions), Parse: typescript.Parse},
 	{Name: javascript.Name, Extensions: slices.Clone(javascript.Extensions), Parse: javascript.Parse},
 	{Name: bash.Name, Extensions: slices.Clone(bash.Extensions), Parse: bash.Parse},
+	{Name: yaml.Name, Extensions: slices.Clone(yaml.Extensions), Parse: yaml.Parse},
 }
 
 func SupportedLanguages() []string {

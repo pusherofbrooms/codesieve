@@ -164,3 +164,68 @@ deploy() {
 		t.Fatalf("expected at least script + function symbols, got %d (%+v)", len(syms), syms)
 	}
 }
+
+func TestParseYAMLCloudFormationSymbols(t *testing.T) {
+	src := []byte(`AWSTemplateFormatVersion: "2010-09-09"
+Description: Sample template
+Parameters:
+  EnvName:
+    Type: String
+Resources:
+  AppBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${EnvName}-app"
+Outputs:
+  BucketName:
+    Value:
+      Ref: AppBucket
+`)
+	syms, lang, err := ParseSymbols("template.yaml", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "yaml" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{
+		"template:template:template.yaml",
+		"section:Resources",
+		"parameter:Parameters.EnvName",
+		"resource:Resources.AppBucket",
+		"output:Outputs.BucketName",
+		"reference:Resources.AppBucket.ref.EnvName",
+		"reference:Outputs.BucketName.ref.AppBucket",
+	} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
+func TestParseYAMLGenericConfigSymbols(t *testing.T) {
+	src := []byte(`service:
+  name: codesieve
+  features:
+    search:
+      enabled: true
+`)
+	syms, lang, err := ParseSymbols("config.yml", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "yaml" {
+		t.Fatalf("lang = %q", lang)
+	}
+	if len(syms) < 4 {
+		t.Fatalf("expected generic yaml key symbols, got %d (%+v)", len(syms), syms)
+	}
+	if syms[0].Kind != "document" {
+		t.Fatalf("expected document root for generic yaml, got %+v", syms[0])
+	}
+}

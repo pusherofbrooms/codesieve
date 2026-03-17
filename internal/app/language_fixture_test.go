@@ -84,6 +84,20 @@ func TestLanguageFixturesFollowStandardContract(t *testing.T) {
 			queryQualified:   "AUTH_HEADER",
 			showContains:     "export AUTH_HEADER",
 		},
+		{
+			name:             "yaml",
+			fixtureDir:       "tests/testdata/languages/yaml",
+			filePath:         "basic.yaml",
+			expectedLanguage: "yaml",
+			topName:          "template:basic.yaml",
+			topKind:          "template",
+			childName:        "Resources",
+			childKind:        "section",
+			query:            "AppBucket",
+			queryKind:        "resource",
+			queryQualified:   "Resources.AppBucket",
+			showContains:     "AppBucket:",
+		},
 	}
 
 	for _, tc := range cases {

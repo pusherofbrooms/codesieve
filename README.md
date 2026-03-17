@@ -123,8 +123,9 @@ codesieve show symbols <id-1> <id-2> --json
 - Python
 - TypeScript / JavaScript
 - Bash
+- YAML (including CloudFormation-oriented symbol extraction)
 
-Go parsing uses the standard library parser. Python and TypeScript/JavaScript use Tree-sitter with vendored grammars for reproducible builds.
+Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Bash, and YAML use Tree-sitter with vendored grammars for reproducible builds.
 
 For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.md`.
 

@@ -9,6 +9,7 @@ Current parser strategy:
 - JavaScript uses the official Tree-sitter Go runtime plus a vendored grammar
 - TypeScript / TSX use the official Tree-sitter Go runtime plus vendored grammars
 - Bash uses the official Tree-sitter Go runtime plus a vendored grammar
+- YAML uses the official Tree-sitter Go runtime plus a vendored grammar
 
 ## Why grammar sources are vendored
 
@@ -32,6 +33,7 @@ Vendored grammars live under:
 - `third_party/tree-sitter-javascript`
 - `third_party/tree-sitter-typescript`
 - `third_party/tree-sitter-bash`
+- `third_party/tree-sitter-yaml`
 
 Local wrappers live under:
 
@@ -39,6 +41,7 @@ Local wrappers live under:
 - `internal/tslang/javascript`
 - `internal/tslang/typescript`
 - `internal/tslang/bash`
+- `internal/tslang/yaml`
 
 Application parser code lives under `internal/parser/`.
 
