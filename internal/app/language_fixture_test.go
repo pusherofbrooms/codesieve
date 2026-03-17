@@ -79,10 +79,10 @@ func TestLanguageFixturesFollowStandardContract(t *testing.T) {
 			topKind:          "script",
 			childName:        "login",
 			childKind:        "function",
-			query:            "login",
-			queryKind:        "function",
-			queryQualified:   "login",
-			showContains:     "login()",
+			query:            "AUTH_HEADER",
+			queryKind:        "variable",
+			queryQualified:   "AUTH_HEADER",
+			showContains:     "export AUTH_HEADER",
 		},
 	}
 

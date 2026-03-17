@@ -101,8 +101,14 @@ export const routes = lazy(() => createRoutes())
 func TestParseBashSymbols(t *testing.T) {
 	src := []byte(`#!/usr/bin/env bash
 
+API_TOKEN="token"
+project_name="dev"
+export AUTH_HEADER
+
 login() {
-  echo "$1"
+  local user="$1"
+  RETRY_COUNT=3
+  echo "$user"
 }
 
 function logout {
@@ -116,16 +122,24 @@ function logout {
 	if lang != "bash" {
 		t.Fatalf("lang = %q", lang)
 	}
-	if len(syms) != 3 {
-		t.Fatalf("expected 3 symbols, got %d (%+v)", len(syms), syms)
+	if len(syms) != 5 {
+		t.Fatalf("expected 5 symbols, got %d (%+v)", len(syms), syms)
 	}
-	if syms[0].Name != "script:script.sh" || syms[0].Kind != "script" {
-		t.Fatalf("unexpected script symbol: %+v", syms[0])
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		if sym.ParentID != "" && sym.ParentID != "script:script.sh" {
+			t.Fatalf("unexpected parent for symbol %+v", sym)
+		}
+		found[sym.Kind+":"+sym.Name] = true
 	}
-	if syms[1].Name != "login" || syms[1].Kind != "function" || syms[1].ParentID != "script:script.sh" {
-		t.Fatalf("unexpected first function symbol: %+v", syms[1])
+
+	for _, key := range []string{"script:script:script.sh", "variable:API_TOKEN", "variable:AUTH_HEADER", "function:login", "function:logout"} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
 	}
-	if syms[2].Name != "logout" || syms[2].Kind != "function" || syms[2].ParentID != "script:script.sh" {
-		t.Fatalf("unexpected second function symbol: %+v", syms[2])
+	if found["variable:project_name"] || found["variable:RETRY_COUNT"] || found["variable:user"] {
+		t.Fatalf("unexpected noisy variable symbols in %+v", syms)
 	}
 }
