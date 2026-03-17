@@ -1,0 +1,5 @@
+repository=https://github.com/tree-sitter-grammars/tree-sitter-hcl.git
+requested_ref=v1.2.0
+resolved_commit=fad991865fee927dd1de5e172fb3f08ac674d914
+vendored_at_utc=2026-03-17T13:24:46Z
+script=scripts/vendor-grammar
