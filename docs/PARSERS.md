@@ -25,6 +25,8 @@ However, the upstream grammar Go bindings rely on relative C includes into gramm
 
 To keep builds reproducible and hermetic under Nix, grammar sources are vendored into this repository under `third_party/`, and tiny local wrapper packages expose the language handles used by the parser.
 
+Only the minimal build-required subset is kept per grammar tree (C parser/scanner sources, required headers, `tree-sitter.json`, `LICENSE*`, and `.codesieve-vendor-meta`).
+
 This is intentional.
 
 Do not replace vendored grammars with direct upstream grammar Go imports unless the Nix packaging story has been revalidated.
@@ -80,7 +82,7 @@ For TypeScript and JavaScript, shared extraction logic lives under `internal/par
 ## Updating an existing vendored grammar
 
 1. Select the new upstream version.
-2. Replace the vendored source tree under `third_party/`.
+2. Replace the vendored source tree under `third_party/` (prefer `scripts/vendor-grammar`, which auto-prunes to required files).
 3. Confirm wrapper include paths still match the vendored layout.
 4. Re-run formatting and tests.
 5. Recompute `vendorHash` if Nix reports a mismatch.

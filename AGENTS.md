@@ -51,4 +51,6 @@ If you need to remove rebuildable local directories or vendored grammar trees, p
   - removes `vendor/`
 - `scripts/remove-vendored-grammar <python|javascript|typescript|bash|hcl|yaml|json|java|rust>`
   - removes one vendored grammar tree under `third_party/`
+- `scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust]`
+  - keeps only build-required files in vendored grammar trees
 

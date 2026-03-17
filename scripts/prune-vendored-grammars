@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust]
+
+Prunes vendored grammar trees down to the files needed by codesieve builds:
+- grammar C sources under src/
+- tree-sitter.json
+- LICENSE* at grammar root
+- .codesieve-vendor-meta
+
+TypeScript additionally keeps:
+- common/scanner.h
+- typescript/src/
+- tsx/src/
+EOF
+}
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+cd "$repo_root"
+
+if [ "$#" -ne 1 ]; then
+  usage
+  exit 1
+fi
+
+arg="$1"
+
+langs=(python javascript typescript bash hcl yaml json java rust)
+
+if [ "$arg" = "all" ]; then
+  targets=("${langs[@]}")
+else
+  targets=("$arg")
+fi
+
+is_known_lang() {
+  local x="$1"
+  for l in "${langs[@]}"; do
+    if [ "$x" = "$l" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+copy_if_exists() {
+  local src="$1"
+  local dst="$2"
+  if [ -e "$src" ]; then
+    mkdir -p "$(dirname "$dst")"
+    cp -a "$src" "$dst"
+  fi
+}
+
+for lang in "${targets[@]}"; do
+  if ! is_known_lang "$lang"; then
+    echo "error: unknown grammar '$lang'" >&2
+    usage
+    exit 1
+  fi
+
+  dir="third_party/tree-sitter-$lang"
+  if [ ! -d "$dir" ]; then
+    echo "skip: $dir does not exist"
+    continue
+  fi
+
+  tmp="$(mktemp -d)"
+  newdir="$tmp/tree"
+  mkdir -p "$newdir"
+
+  copy_if_exists "$dir/.codesieve-vendor-meta" "$newdir/.codesieve-vendor-meta"
+  copy_if_exists "$dir/tree-sitter.json" "$newdir/tree-sitter.json"
+  copy_if_exists "$dir/src" "$newdir/src"
+
+  shopt -s nullglob
+  for lf in "$dir"/LICENSE*; do
+    copy_if_exists "$lf" "$newdir/$(basename "$lf")"
+  done
+  shopt -u nullglob
+
+  if [ "$lang" = "typescript" ]; then
+    copy_if_exists "$dir/common/scanner.h" "$newdir/common/scanner.h"
+    copy_if_exists "$dir/typescript/src" "$newdir/typescript/src"
+    copy_if_exists "$dir/tsx/src" "$newdir/tsx/src"
+  fi
+
+  rm -rf "$dir"
+  mkdir -p "$(dirname "$dir")"
+  mv "$newdir" "$dir"
+  rm -rf "$tmp"
+
+  echo "pruned: $dir"
+done

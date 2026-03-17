@@ -137,6 +137,10 @@ vendored_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 script=scripts/vendor-grammar
 EOF
 
+if [ -x "scripts/prune-vendored-grammars" ] && [[ "$dest" == third_party/tree-sitter-* ]]; then
+  scripts/prune-vendored-grammars "$language"
+fi
+
 echo "Done."
 echo "- language: $language"
 echo "- destination: $dest"
