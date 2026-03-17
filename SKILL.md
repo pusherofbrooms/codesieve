@@ -1,6 +1,6 @@
 ---
 name: codesieve
-description: Token-efficient local code indexing and retrieval for coding agents.
+description: Rapidly locate and extract relevant code with symbol-first queries while minimizing context and full-file reads.
 ---
 
 # codesieve skill
