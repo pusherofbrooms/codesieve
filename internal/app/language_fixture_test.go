@@ -81,7 +81,7 @@ func TestLanguageFixturesFollowStandardContract(t *testing.T) {
 			childKind:        "method",
 			query:            "login",
 			queryKind:        "method",
-			queryQualified:   "AuthService.login",
+			queryQualified:   "AuthService.login(String)",
 			showContains:     "public boolean login(String user)",
 		},
 		{

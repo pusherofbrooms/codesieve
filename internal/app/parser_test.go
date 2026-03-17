@@ -99,7 +99,9 @@ export const routes = lazy(() => createRoutes())
 }
 
 func TestParseJavaSymbols(t *testing.T) {
-	src := []byte(`package sample;
+	src := []byte(`package sample.auth;
+
+import java.util.List;
 
 public class AuthService {
   private final String authHeader = "X-Auth-Header";
@@ -108,6 +110,10 @@ public class AuthService {
 
   public boolean login(String user) {
     return true;
+  }
+
+  public boolean login(String user, int retries) {
+    return retries > 0 && user != null;
   }
 
   static class Token {
@@ -128,9 +134,12 @@ public class AuthService {
 		found[sym.Kind+":"+sym.QualifiedName] = true
 	}
 	for _, key := range []string{
+		"package:sample.auth",
+		"import:java.util.List",
 		"class:AuthService",
-		"constructor:AuthService.AuthService",
-		"method:AuthService.login",
+		"constructor:AuthService.AuthService()",
+		"method:AuthService.login(String)",
+		"method:AuthService.login(String,int)",
 		"field:AuthService.authHeader",
 		"class:AuthService.Token",
 		"field:AuthService.Token.value",
