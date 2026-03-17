@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 export AUTH_HEADER
+source ./lib/common.sh
 
 login() {
   local user="$1"

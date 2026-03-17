@@ -104,10 +104,12 @@ func TestParseBashSymbols(t *testing.T) {
 API_TOKEN="token"
 project_name="dev"
 export AUTH_HEADER
+source ./lib/common.sh
 
 login() {
   local user="$1"
   RETRY_COUNT=3
+  . ./lib/inner.sh
   echo "$user"
 }
 
@@ -122,8 +124,8 @@ function logout {
 	if lang != "bash" {
 		t.Fatalf("lang = %q", lang)
 	}
-	if len(syms) != 5 {
-		t.Fatalf("expected 5 symbols, got %d (%+v)", len(syms), syms)
+	if len(syms) != 6 {
+		t.Fatalf("expected 6 symbols, got %d (%+v)", len(syms), syms)
 	}
 
 	found := map[string]bool{}
@@ -134,12 +136,31 @@ function logout {
 		found[sym.Kind+":"+sym.Name] = true
 	}
 
-	for _, key := range []string{"script:script:script.sh", "variable:API_TOKEN", "variable:AUTH_HEADER", "function:login", "function:logout"} {
+	for _, key := range []string{"script:script:script.sh", "variable:API_TOKEN", "variable:AUTH_HEADER", "include:source:./lib/common.sh", "function:login", "function:logout"} {
 		if !found[key] {
 			t.Fatalf("missing expected symbol %q in %+v", key, syms)
 		}
 	}
-	if found["variable:project_name"] || found["variable:RETRY_COUNT"] || found["variable:user"] {
-		t.Fatalf("unexpected noisy variable symbols in %+v", syms)
+	if found["include:source:./lib/inner.sh"] || found["variable:project_name"] || found["variable:RETRY_COUNT"] || found["variable:user"] {
+		t.Fatalf("unexpected noisy symbols in %+v", syms)
+	}
+}
+
+func TestParseBashSymbolsFromShebangWithoutExtension(t *testing.T) {
+	src := []byte(`#!/usr/bin/env bash
+
+deploy() {
+  echo ok
+}
+`)
+	syms, lang, err := ParseSymbols("deploy", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "bash" {
+		t.Fatalf("lang = %q", lang)
+	}
+	if len(syms) < 2 {
+		t.Fatalf("expected at least script + function symbols, got %d (%+v)", len(syms), syms)
 	}
 }

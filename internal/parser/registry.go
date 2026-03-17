@@ -47,8 +47,23 @@ func DetectLanguage(path string) string {
 	return spec.Name
 }
 
-func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
+func DetectLanguageWithContent(path string, content []byte) string {
 	spec := specForPath(path)
+	if spec != nil {
+		return spec.Name
+	}
+	if isBashShebang(content) {
+		return bash.Name
+	}
+	return ""
+}
+
+func ParseSymbols(path string, content []byte) ([]Symbol, string, error) {
+	lang := DetectLanguageWithContent(path, content)
+	if lang == "" {
+		return nil, "", nil
+	}
+	spec := specForName(lang)
 	if spec == nil {
 		return nil, "", nil
 	}
@@ -67,4 +82,27 @@ func specForPath(path string) *Spec {
 		}
 	}
 	return nil
+}
+
+func specForName(name string) *Spec {
+	for i := range specs {
+		spec := &specs[i]
+		if spec.Name == name {
+			return spec
+		}
+	}
+	return nil
+}
+
+func isBashShebang(content []byte) bool {
+	line := string(content)
+	if idx := strings.IndexByte(line, '\n'); idx >= 0 {
+		line = line[:idx]
+	}
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "#!") {
+		return false
+	}
+	line = strings.ToLower(line)
+	return strings.Contains(line, "bash")
 }

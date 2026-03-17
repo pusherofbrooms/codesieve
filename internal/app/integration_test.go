@@ -820,3 +820,56 @@ func TestShowSymbolVerifyDetectsDrift(t *testing.T) {
 		t.Fatalf("expected verification failure after drift, got %+v", second.Verification)
 	}
 }
+
+func TestIndexDetectsBashByShebangAndIndexesSourceIncludes(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	workdir := filepath.Join(t.TempDir(), "workrepo-bash-shebang")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workdir: %v", err)
+	}
+	deploy := "#!/usr/bin/env bash\n\nsource ./scripts/common.sh\n\ndeploy_main() {\n  echo deploying\n}\n"
+	if err := os.WriteFile(filepath.Join(workdir, "deploy"), []byte(deploy), 0o755); err != nil {
+		t.Fatalf("WriteFile deploy: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workdir, "scripts"), 0o755); err != nil {
+		t.Fatalf("MkdirAll scripts: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, "scripts", "common.sh"), []byte("#!/usr/bin/env bash\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile common.sh: %v", err)
+	}
+
+	res, err := svc.Index(ctx, workdir, IndexOptions{})
+	if err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+	if res.FilesIndexed != 2 {
+		t.Fatalf("expected 2 indexed bash files (deploy + common.sh), got %+v", res)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(workdir); err != nil {
+		t.Fatalf("Chdir(%s): %v", workdir, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	functions, err := svc.SearchSymbols(ctx, SearchSymbolOptions{Query: "deploy_main", Kind: "function", Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchSymbols function error: %v", err)
+	}
+	if len(functions.Results) != 1 || functions.Results[0].FilePath != "deploy" {
+		t.Fatalf("expected deploy_main in extensionless deploy script, got %+v", functions.Results)
+	}
+
+	includes, err := svc.SearchSymbols(ctx, SearchSymbolOptions{Query: "common.sh", Kind: "include", Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchSymbols include error: %v", err)
+	}
+	if len(includes.Results) != 1 || includes.Results[0].FilePath != "deploy" {
+		t.Fatalf("expected include symbol from deploy script, got %+v", includes.Results)
+	}
+}

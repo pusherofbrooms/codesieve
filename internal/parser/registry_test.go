@@ -49,3 +49,13 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectLanguageWithContentSupportsBashShebang(t *testing.T) {
+	content := []byte("#!/usr/bin/env bash\necho hi\n")
+	if got := DetectLanguageWithContent("scripts/deploy", content); got != "bash" {
+		t.Fatalf("DetectLanguageWithContent shebang = %q, want bash", got)
+	}
+	if got := DetectLanguageWithContent("README", []byte("# docs\n")); got != "" {
+		t.Fatalf("DetectLanguageWithContent non-shebang = %q, want empty", got)
+	}
+}

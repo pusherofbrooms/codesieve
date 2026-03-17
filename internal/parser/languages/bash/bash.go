@@ -24,6 +24,7 @@ func Parse(path string, content []byte) ([]core.Symbol, error) {
 
 		symbols := []core.Symbol{script}
 		seenVars := map[string]struct{}{}
+		seenIncludes := map[string]struct{}{}
 
 		var walk func(node *treesitter.Node, inFunction bool)
 		walk = func(node *treesitter.Node, inFunction bool) {
@@ -59,6 +60,10 @@ func Parse(path string, content []byte) ([]core.Symbol, error) {
 						}
 					})
 				}
+			case "command":
+				if !inFunction {
+					appendBashIncludeSymbol(&symbols, seenIncludes, node, content, scriptName)
+				}
 			}
 
 			core.WalkNamedChildren(node, func(child *treesitter.Node) {
@@ -91,6 +96,37 @@ func appendBashVariableNameSymbol(symbols *[]core.Symbol, seen map[string]struct
 		return
 	}
 	sym := core.MakeSymbol(content, signatureNode, name, name, "variable")
+	sym.ParentID = scriptName
+	*symbols = append(*symbols, sym)
+	seen[name] = struct{}{}
+}
+
+func appendBashIncludeSymbol(symbols *[]core.Symbol, seen map[string]struct{}, commandNode *treesitter.Node, content []byte, scriptName string) {
+	if commandNode == nil {
+		return
+	}
+	nameNode := commandNode.ChildByFieldName("name")
+	if nameNode == nil {
+		return
+	}
+	cmd := strings.TrimSpace(core.NodeText(nameNode, content))
+	if cmd != "source" && cmd != "." {
+		return
+	}
+	argNode := commandNode.ChildByFieldName("argument")
+	if argNode == nil {
+		return
+	}
+	include := strings.TrimSpace(core.NodeText(argNode, content))
+	include = strings.Trim(include, `"'`)
+	if include == "" {
+		return
+	}
+	name := "source:" + include
+	if _, ok := seen[name]; ok {
+		return
+	}
+	sym := core.MakeSymbol(content, commandNode, name, include, "include")
 	sym.ParentID = scriptName
 	*symbols = append(*symbols, sym)
 	seen[name] = struct{}{}

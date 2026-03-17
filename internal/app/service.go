@@ -101,7 +101,14 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		}
 		lang := DetectLanguage(fullPath)
 		if lang == "" {
-			return nil
+			probe, err := readFilePrefix(fullPath, 256)
+			if err != nil {
+				return err
+			}
+			lang = DetectLanguageWithContent(fullPath, probe)
+			if lang == "" {
+				return nil
+			}
 		}
 		info, err := d.Info()
 		if err != nil {
@@ -426,6 +433,23 @@ func isBinary(content []byte) bool {
 func sha256hex(content []byte) string {
 	sum := sha256.Sum256(content)
 	return hex.EncodeToString(sum[:])
+}
+
+func readFilePrefix(path string, limit int) ([]byte, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	buf := make([]byte, limit)
+	n, err := f.Read(buf)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return buf[:n], nil
 }
 
 func finalizeSymbols(repoPath, relPath, language string, symbols []Symbol) []Symbol {
