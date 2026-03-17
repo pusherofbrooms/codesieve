@@ -15,7 +15,6 @@ Use:
 - `nix build` to build the current project.
 - If a new dependency is needed, propose a change to flake.nix.
 
-Before any nix build or nix flake check, ensure all newly created files are tracked (git add -A).
 You don't have access to a PTY, so no interactive nix shell.
 
 - No old-style Nix commands (`nix-env`, `nix-shell`, `nix-channel`, etc.)
@@ -53,10 +52,3 @@ If you need to remove rebuildable local directories or vendored grammar trees, p
 - `scripts/remove-vendored-grammar <python|javascript|typescript|bash|yaml|json>`
   - removes one vendored grammar tree under `third_party/`
 
-## Default self-use and agent-in-the-loop evaluation
-
-- Use this repo’s search tool as the default path for code navigation and discovery.
-- Run it via Nix (`nix run` or `nix develop --command ...`) so behavior stays reproducible.
-- When falling back to other tools, log: query, expected result, actual result, and fallback command.
-- Treat repeated misses as product bugs: add/extend tests, fix ranking/parsing behavior, and prevent regressions.
-- Goal: continuous, measurable improvement through real agent workflows—not ad hoc usage.
