@@ -36,3 +36,17 @@ Example:
 ```bash
 CODESIEVE_SECRET_PATH_PATTERNS="*.crt,config/private/*" codesieve index . --json
 ```
+
+## Indexing controls (CLI flags)
+
+`codesieve index` also supports runtime controls:
+
+- `--no-gitignore`
+- `--max-files=<n>`
+- `--max-size=<bytes>`
+
+Example:
+
+```bash
+codesieve index . --json --no-gitignore --max-files=20000 --max-size=2097152
+```

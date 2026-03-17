@@ -23,6 +23,12 @@ For command/flag reference:
 ./codesieve --help
 ```
 
+To print the installed version:
+
+```bash
+./codesieve version
+```
+
 ## Install
 
 ### Go install (remote)
@@ -117,6 +123,42 @@ codesieve show symbols <id-1> <id-2> --json
 
 `repo outline --json` includes `latest_index_run` stats from SQLite (status, duration, and per-run file/symbol counters) so agents can quickly inspect index freshness and recent indexing behavior.
 
+## Command and flag highlights
+
+Use `codesieve <command> --help` for full details. Commonly useful flags:
+
+### Indexing
+
+```bash
+codesieve index . --json --no-gitignore --max-files=20000 --max-size=2097152
+```
+
+- `--no-gitignore`: ignore `.gitignore` rules during indexing
+- `--max-files=<n>`: cap discovered file count
+- `--max-size=<bytes>`: cap per-file size for indexing
+
+### Text search
+
+```bash
+codesieve search text "token.*expires" --regex --context-lines=2 --json
+```
+
+- `--regex`: treat query as regular expression
+- `--context-lines=<n>`: include surrounding lines in text results
+
+### Show commands
+
+```bash
+codesieve show symbol <id> --content-only
+codesieve show symbol <id> --context=3 --json
+codesieve show file path/to/file --start-line=20 --end-line=80 --content-only
+```
+
+- `show symbol --content-only`: print only symbol source
+- `show symbol --context=<n>`: include surrounding lines for symbol retrieval
+- `show file --start-line/--end-line`: fetch a precise file slice
+- `show file --content-only`: print only file content slice
+
 ## Supported languages (v1)
 
 - Go
@@ -136,6 +178,12 @@ For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.m
 `codesieve index` skips common secret-like paths (for example `.env`, key/cert files, and names containing `secret` outside doc extensions) and records `SKIPPED_SECRET` diagnostics.
 
 It also skips common Terraform/OpenTofu generated artifacts (`.terraform/`, `*.tfstate`, `*.tfstate.backup`) and records `SKIPPED_ARTIFACT` diagnostics.
+
+Other common skip diagnostics during indexing include:
+
+- `SKIPPED_IGNORED` (matched by `.gitignore`, unless `--no-gitignore`)
+- `SKIPPED_TOO_LARGE` (exceeded `--max-size`)
+- `SKIPPED_BINARY` (binary file detection)
 
 You can add custom skip globs with:
 
