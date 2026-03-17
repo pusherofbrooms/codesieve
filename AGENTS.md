@@ -51,3 +51,11 @@ If you need to remove rebuildable local directories or vendored grammar trees, p
   - removes `vendor/`
 - `scripts/remove-vendored-grammar <python|javascript|typescript>`
   - removes one vendored grammar tree under `third_party/`
+
+## Default self-use and agent-in-the-loop evaluation
+
+- Use this repo’s search tool as the default path for code navigation and discovery.
+- Run it via Nix (`nix run` or `nix develop --command ...`) so behavior stays reproducible.
+- When falling back to other tools, log: query, expected result, actual result, and fallback command.
+- Treat repeated misses as product bugs: add/extend tests, fix ranking/parsing behavior, and prevent regressions.
+- Goal: continuous, measurable improvement through real agent workflows—not ad hoc usage.
