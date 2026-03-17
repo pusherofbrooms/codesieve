@@ -49,6 +49,6 @@ If you need to remove rebuildable local directories or vendored grammar trees, p
   - removes `.bats-codesieve-bin`, `.codesieve-test.db`, and `vendor/`
 - `scripts/reset-vendor`
   - removes `vendor/`
-- `scripts/remove-vendored-grammar <python|javascript|typescript|bash|yaml|json>`
+- `scripts/remove-vendored-grammar <python|javascript|typescript|bash|hcl|yaml|json|java|rust>`
   - removes one vendored grammar tree under `third_party/`
 

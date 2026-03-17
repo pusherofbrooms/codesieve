@@ -10,6 +10,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/rust"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"
 	"github.com/pusherofbrooms/codesieve/internal/parser/spec"
@@ -19,6 +20,7 @@ func Specs() []spec.Spec {
 	return []spec.Spec{
 		{Name: golang.Name, Extensions: slices.Clone(golang.Extensions), Parse: golang.Parse},
 		{Name: python.Name, Extensions: slices.Clone(python.Extensions), Parse: python.Parse},
+		{Name: rust.Name, Extensions: slices.Clone(rust.Extensions), Parse: rust.Parse},
 		{Name: typescript.Name, Extensions: slices.Clone(typescript.Extensions), Parse: typescript.Parse},
 		{Name: javascript.Name, Extensions: slices.Clone(javascript.Extensions), Parse: javascript.Parse},
 		{Name: java.Name, Extensions: slices.Clone(java.Extensions), Parse: java.Parse},

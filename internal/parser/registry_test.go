@@ -10,6 +10,7 @@ func TestSupportedLanguagesIncludesBuiltins(t *testing.T) {
 	want := map[string]bool{
 		"go":         false,
 		"python":     false,
+		"rust":       false,
 		"typescript": false,
 		"javascript": false,
 		"java":       false,
@@ -39,6 +40,7 @@ func TestDetectLanguageByExtension(t *testing.T) {
 	}{
 		{path: "main.go", want: "go"},
 		{path: "script.py", want: "python"},
+		{path: "main.rs", want: "rust"},
 		{path: "file.ts", want: "typescript"},
 		{path: "file.tsx", want: "typescript"},
 		{path: "file.js", want: "javascript"},

@@ -169,12 +169,13 @@ codesieve show file path/to/file --start-line=20 --end-line=80 --content-only
 - Python
 - TypeScript / JavaScript
 - Java
+- Rust
 - Bash
 - Terraform / OpenTofu (HCL)
 - YAML (including CloudFormation-oriented symbol extraction)
 - JSON (including CloudFormation-oriented symbol extraction)
 
-Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Java, Bash, Terraform/OpenTofu (HCL), YAML, and JSON use Tree-sitter with vendored grammars for reproducible builds.
+Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Java, Rust, Bash, Terraform/OpenTofu (HCL), YAML, and JSON use Tree-sitter with vendored grammars for reproducible builds.
 
 For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.md`.
 

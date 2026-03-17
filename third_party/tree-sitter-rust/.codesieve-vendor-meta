@@ -1,0 +1,5 @@
+repository=https://github.com/tree-sitter/tree-sitter-rust.git
+requested_ref=v0.24.0
+resolved_commit=18b0515fca567f5a10aee9978c6d2640e878671a
+vendored_at_utc=2026-03-17T16:35:15Z
+script=scripts/vendor-grammar

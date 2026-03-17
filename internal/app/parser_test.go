@@ -98,6 +98,47 @@ export const routes = lazy(() => createRoutes())
 	}
 }
 
+func TestParseRustSymbols(t *testing.T) {
+	src := []byte(`use std::collections::HashMap;
+
+struct AuthService {
+    token: String,
+}
+
+impl AuthService {
+    fn login(&self, user: &str) -> bool {
+        !user.is_empty()
+    }
+}
+
+fn build_index() -> HashMap<String, usize> {
+    HashMap::new()
+}
+`)
+	syms, lang, err := ParseSymbols("auth.rs", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "rust" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{
+		"import:std::collections::HashMap",
+		"struct:AuthService",
+		"method:AuthService.login",
+		"function:build_index",
+	} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
 func TestParseJavaSymbols(t *testing.T) {
 	src := []byte(`package sample.auth;
 
