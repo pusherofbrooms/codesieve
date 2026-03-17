@@ -8,6 +8,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/hcl"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/java"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
@@ -20,6 +21,7 @@ var (
 	_ ParseFunc = python.Parse
 	_ ParseFunc = typescript.Parse
 	_ ParseFunc = javascript.Parse
+	_ ParseFunc = java.Parse
 	_ ParseFunc = hcl.Parse
 	_ ParseFunc = json.Parse
 	_ ParseFunc = bash.Parse
@@ -34,6 +36,7 @@ func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
 		{name: "go", path: "tests/testdata/languages/go/basic.go"},
 		{name: "python", path: "tests/testdata/languages/python/basic.py"},
 		{name: "typescript", path: "tests/testdata/languages/typescript/basic.ts"},
+		{name: "java", path: "tests/testdata/languages/java/basic.java"},
 		{name: "hcl", path: "tests/testdata/languages/hcl/basic.tf"},
 		{name: "hcl tfvars", path: "tests/testdata/languages/hcl_cases/variables.tfvars"},
 		{name: "hcl tf.json", path: "tests/testdata/languages/hcl_cases/main.tf.json"},

@@ -6,6 +6,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/hcl"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/java"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
@@ -20,6 +21,7 @@ func Specs() []spec.Spec {
 		{Name: python.Name, Extensions: slices.Clone(python.Extensions), Parse: python.Parse},
 		{Name: typescript.Name, Extensions: slices.Clone(typescript.Extensions), Parse: typescript.Parse},
 		{Name: javascript.Name, Extensions: slices.Clone(javascript.Extensions), Parse: javascript.Parse},
+		{Name: java.Name, Extensions: slices.Clone(java.Extensions), Parse: java.Parse},
 		{Name: hcl.Name, Extensions: slices.Clone(hcl.Extensions), Parse: hcl.Parse},
 		{Name: json.Name, Extensions: slices.Clone(json.Extensions), Parse: json.Parse},
 		{Name: bash.Name, Extensions: slices.Clone(bash.Extensions), Parse: bash.Parse},

@@ -98,6 +98,49 @@ export const routes = lazy(() => createRoutes())
 	}
 }
 
+func TestParseJavaSymbols(t *testing.T) {
+	src := []byte(`package sample;
+
+public class AuthService {
+  private final String authHeader = "X-Auth-Header";
+
+  public AuthService() {}
+
+  public boolean login(String user) {
+    return true;
+  }
+
+  static class Token {
+    String value;
+  }
+}
+`)
+	syms, lang, err := ParseSymbols("AuthService.java", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "java" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{
+		"class:AuthService",
+		"constructor:AuthService.AuthService",
+		"method:AuthService.login",
+		"field:AuthService.authHeader",
+		"class:AuthService.Token",
+		"field:AuthService.Token.value",
+	} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
 func TestParseBashSymbols(t *testing.T) {
 	src := []byte(`#!/usr/bin/env bash
 

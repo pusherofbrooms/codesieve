@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
-  echo "usage: $0 <python|javascript|typescript|bash|hcl|yaml|json>" >&2
+  echo "usage: $0 <python|javascript|typescript|bash|hcl|yaml|json|java>" >&2
   exit 1
 fi
 
@@ -32,9 +32,12 @@ case "$1" in
   json)
     target="third_party/tree-sitter-json"
     ;;
+  java)
+    target="third_party/tree-sitter-java"
+    ;;
   *)
     echo "unknown grammar: $1" >&2
-    echo "expected one of: python, javascript, typescript, bash, hcl, yaml, json" >&2
+    echo "expected one of: python, javascript, typescript, bash, hcl, yaml, json, java" >&2
     exit 1
     ;;
 esac

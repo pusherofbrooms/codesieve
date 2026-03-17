@@ -8,6 +8,7 @@ Current parser strategy:
 - Python uses the official Tree-sitter Go runtime plus a vendored grammar
 - JavaScript uses the official Tree-sitter Go runtime plus a vendored grammar
 - TypeScript / TSX use the official Tree-sitter Go runtime plus vendored grammars
+- Java uses the official Tree-sitter Go runtime plus a vendored grammar
 - Bash uses the official Tree-sitter Go runtime plus a vendored grammar
 - Terraform/OpenTofu (HCL) uses the official Tree-sitter Go runtime plus a vendored grammar
 - YAML uses the official Tree-sitter Go runtime plus a vendored grammar
@@ -34,6 +35,7 @@ Vendored grammars live under:
 - `third_party/tree-sitter-python`
 - `third_party/tree-sitter-javascript`
 - `third_party/tree-sitter-typescript`
+- `third_party/tree-sitter-java`
 - `third_party/tree-sitter-bash`
 - `third_party/tree-sitter-hcl`
 - `third_party/tree-sitter-yaml`
@@ -44,6 +46,7 @@ Local wrappers live under:
 - `internal/tslang/python`
 - `internal/tslang/javascript`
 - `internal/tslang/typescript`
+- `internal/tslang/java`
 - `internal/tslang/bash`
 - `internal/tslang/hcl`
 - `internal/tslang/yaml`

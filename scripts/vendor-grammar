@@ -12,6 +12,7 @@ Known languages:
   bash        -> https://github.com/tree-sitter/tree-sitter-bash.git
   hcl         -> https://github.com/tree-sitter-grammars/tree-sitter-hcl.git
   json        -> https://github.com/tree-sitter/tree-sitter-json.git
+  java        -> https://github.com/tree-sitter/tree-sitter-java.git
 
 Examples:
   scripts/vendor-grammar bash v0.25.1
@@ -29,6 +30,7 @@ repo_for_language() {
     bash) echo "https://github.com/tree-sitter/tree-sitter-bash.git" ;;
     hcl) echo "https://github.com/tree-sitter-grammars/tree-sitter-hcl.git" ;;
     json) echo "https://github.com/tree-sitter/tree-sitter-json.git" ;;
+    java) echo "https://github.com/tree-sitter/tree-sitter-java.git" ;;
     *) return 1 ;;
   esac
 }

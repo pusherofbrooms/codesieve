@@ -1,0 +1,5 @@
+repository=https://github.com/tree-sitter/tree-sitter-java.git
+requested_ref=v0.23.5
+resolved_commit=94703d5a6bed02b98e438d7cad1136c01a60ba2c
+vendored_at_utc=2026-03-17T15:41:45Z
+script=scripts/vendor-grammar
