@@ -46,6 +46,38 @@ func OpenStore(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
+const currentSchemaVersion = 3
+
+type schemaMigration struct {
+	Version int
+	Name    string
+	Apply   func(tx *sql.Tx) error
+}
+
+var schemaMigrations = []schemaMigration{
+	{
+		Version: 1,
+		Name:    "add_files_mod_time_ns",
+		Apply: func(tx *sql.Tx) error {
+			return ensureColumnTx(tx, "files", "mod_time_ns", `ALTER TABLE files ADD COLUMN mod_time_ns INTEGER NOT NULL DEFAULT 0`)
+		},
+	},
+	{
+		Version: 2,
+		Name:    "add_files_content",
+		Apply: func(tx *sql.Tx) error {
+			return ensureColumnTx(tx, "files", "content", `ALTER TABLE files ADD COLUMN content TEXT NOT NULL DEFAULT ''`)
+		},
+	},
+	{
+		Version: 3,
+		Name:    "add_files_parser_version",
+		Apply: func(tx *sql.Tx) error {
+			return ensureColumnTx(tx, "files", "parser_version", `ALTER TABLE files ADD COLUMN parser_version TEXT NOT NULL DEFAULT ''`)
+		},
+	},
+}
+
 func (s *Store) migrate() error {
 	schema := `
 CREATE TABLE IF NOT EXISTS repos (
@@ -107,27 +139,108 @@ CREATE TABLE IF NOT EXISTS index_runs (
   error_code TEXT,
   error_message TEXT
 );
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
 CREATE INDEX IF NOT EXISTS idx_symbols_qname ON symbols(qualified_name);
 CREATE INDEX IF NOT EXISTS idx_files_repo_path ON files(repo_id, path);
 CREATE INDEX IF NOT EXISTS idx_index_runs_repo_id_id ON index_runs(repo_id, id DESC);
 `
-	if _, err := s.db.Exec(schema); err != nil {
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
 		return err
 	}
-	_, err := s.db.Exec(`ALTER TABLE files ADD COLUMN mod_time_ns INTEGER NOT NULL DEFAULT 0`)
-	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(schema); err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`ALTER TABLE files ADD COLUMN content TEXT NOT NULL DEFAULT ''`)
-	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+
+	version, err := readUserVersionTx(tx)
+	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`ALTER TABLE files ADD COLUMN parser_version TEXT NOT NULL DEFAULT ''`)
-	if err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+	if version > currentSchemaVersion {
+		return fmt.Errorf("database schema version %d is newer than supported version %d", version, currentSchemaVersion)
+	}
+
+	for _, migration := range schemaMigrations {
+		if migration.Version <= version {
+			continue
+		}
+		if err := migration.Apply(tx); err != nil {
+			return err
+		}
+		if err := recordMigrationTx(tx, migration); err != nil {
+			return err
+		}
+		if err := setUserVersionTx(tx, migration.Version); err != nil {
+			return err
+		}
+		version = migration.Version
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func ensureColumnTx(tx *sql.Tx, table, column, alterSQL string) error {
+	exists, err := hasColumnTx(tx, table, column)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	_, err = tx.Exec(alterSQL)
+	return err
+}
+
+func hasColumnTx(tx *sql.Tx, table, column string) (bool, error) {
+	rows, err := tx.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull, pk int
+		var dfltValue any
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			return false, err
+		}
+		if strings.EqualFold(name, column) {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func readUserVersionTx(tx *sql.Tx) (int, error) {
+	var version int
+	if err := tx.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		return 0, err
+	}
+	return version, nil
+}
+
+func setUserVersionTx(tx *sql.Tx, version int) error {
+	_, err := tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", version))
+	return err
+}
+
+func recordMigrationTx(tx *sql.Tx, migration schemaMigration) error {
+	_, err := tx.Exec(`INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES(?, ?, datetime('now'))`, migration.Version, migration.Name)
+	return err
 }
 
 func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {

@@ -23,6 +23,17 @@ If you use a repo-local DB path, add an ignore rule:
 *.codesieve.db
 ```
 
+## Schema migrations and compatibility
+
+`codesieve` tracks DB schema state with:
+
+- `PRAGMA user_version` (current schema version)
+- `schema_migrations` table (applied migration records)
+
+On startup, `codesieve` runs forward migrations automatically.
+
+This improves long-term DB stability when index metadata evolves, and avoids requiring users to wipe their DB for routine upgrades.
+
 ## Secret path skip controls
 
 `codesieve index` skips built-in secret-like paths and supports custom controls:
