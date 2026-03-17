@@ -2,6 +2,7 @@
 
 ## Conversational behavior
 
+- Questions should be answered in the shortest reasonable way.
 - Be concise. Brevity is wit.
 
 ## Nix Discipline
@@ -14,7 +15,7 @@ Use:
 - `nix build` to build the current project.
 - If a new dependency is needed, propose a change to flake.nix.
 
-Sadly, you don't have access to a PTY, so no interactive nix shell.
+You don't have access to a PTY, so no interactive nix shell.
 
 - No old-style Nix commands (`nix-env`, `nix-shell`, `nix-channel`, etc.)
 - No `nix profile`
