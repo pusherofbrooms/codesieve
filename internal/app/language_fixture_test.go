@@ -98,6 +98,20 @@ func TestLanguageFixturesFollowStandardContract(t *testing.T) {
 			queryQualified:   "Resources.AppBucket",
 			showContains:     "AppBucket:",
 		},
+		{
+			name:             "json",
+			fixtureDir:       "tests/testdata/languages/json",
+			filePath:         "basic.json",
+			expectedLanguage: "json",
+			topName:          "template:basic.json",
+			topKind:          "template",
+			childName:        "Resources",
+			childKind:        "section",
+			query:            "AppBucket",
+			queryKind:        "resource",
+			queryQualified:   "Resources.AppBucket",
+			showContains:     "\"AppBucket\"",
+		},
 	}
 
 	for _, tc := range cases {

@@ -9,6 +9,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"
@@ -29,6 +30,7 @@ var specs = []Spec{
 	{Name: python.Name, Extensions: slices.Clone(python.Extensions), Parse: python.Parse},
 	{Name: typescript.Name, Extensions: slices.Clone(typescript.Extensions), Parse: typescript.Parse},
 	{Name: javascript.Name, Extensions: slices.Clone(javascript.Extensions), Parse: javascript.Parse},
+	{Name: json.Name, Extensions: slices.Clone(json.Extensions), Parse: json.Parse},
 	{Name: bash.Name, Extensions: slices.Clone(bash.Extensions), Parse: bash.Parse},
 	{Name: yaml.Name, Extensions: slices.Clone(yaml.Extensions), Parse: yaml.Parse},
 }
