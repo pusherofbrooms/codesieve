@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pusherofbrooms/codesieve/internal/parser"
 	ignore "github.com/sabhiram/go-gitignore"
 )
 
@@ -111,13 +112,13 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			_ = s.store.addDiagnostic(ctx, repoID, d)
 			return nil
 		}
-		lang := DetectLanguage(fullPath)
+		lang := parser.DetectLanguage(fullPath)
 		if lang == "" {
 			probe, err := readFilePrefix(fullPath, 256)
 			if err != nil {
 				return err
 			}
-			lang = DetectLanguageWithContent(fullPath, probe)
+			lang = parser.DetectLanguageWithContent(fullPath, probe)
 			if lang == "" {
 				return nil
 			}
@@ -133,7 +134,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			return nil
 		}
 		seen[rel] = struct{}{}
-		parserVersion := LanguageVersion(lang)
+		parserVersion := parser.LanguageVersion(lang)
 		if !opt.Force {
 			if prev, ok := existing[rel]; ok && prev.SizeBytes == info.Size() && prev.ModTimeNS == info.ModTime().UnixNano() && prev.ParserVersion == parserVersion {
 				if prev.ParseStatus == "parse_failed" {
@@ -168,7 +169,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 				return nil
 			}
 		}
-		parsed, detectedLang, err := ParseSymbols(fullPath, content)
+		parsed, detectedLang, err := parser.ParseSymbols(fullPath, content)
 		parseStatus := "ok"
 		if err != nil {
 			parseStatus = "parse_failed"
@@ -182,7 +183,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 		pending = append(pending, FileIndexUpdate{
 			RelPath:       rel,
 			Language:      detectedLang,
-			ParserVersion: LanguageVersion(detectedLang),
+			ParserVersion: parser.LanguageVersion(detectedLang),
 			Hash:          hash,
 			SizeBytes:     info.Size(),
 			ModTimeNS:     info.ModTime().UnixNano(),
@@ -281,7 +282,7 @@ func (s *Service) Outline(ctx context.Context, path string) (OutlineResult, erro
 	if err != nil {
 		return OutlineResult{}, err
 	}
-	parsed, lang, err := ParseSymbols(fullPath, content)
+	parsed, lang, err := parser.ParseSymbols(fullPath, content)
 	if err != nil {
 		return OutlineResult{}, err
 	}
@@ -344,7 +345,7 @@ func (s *Service) ShowSymbols(ctx context.Context, ids []string) (ShowSymbolsRes
 }
 
 func verifyStoredSymbol(rec *symbolRecord, fullPath string, content []byte) *SymbolVerification {
-	parsed, _, err := ParseSymbols(fullPath, content)
+	parsed, _, err := parser.ParseSymbols(fullPath, content)
 	if err != nil {
 		return &SymbolVerification{Verified: false, Reason: "unable to parse file for verification"}
 	}

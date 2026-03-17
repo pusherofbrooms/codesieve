@@ -1,6 +1,10 @@
 package app
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/pusherofbrooms/codesieve/internal/parser"
+)
 
 func TestParseGoSymbols(t *testing.T) {
 	src := []byte(`package sample
@@ -11,7 +15,7 @@ func Authenticate(token string) error { return nil }
 
 func (u *User) Login(name string) bool { return true }
 `)
-	syms, lang, err := ParseSymbols("sample.go", src)
+	syms, lang, err := parser.ParseSymbols("sample.go", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -38,7 +42,7 @@ func TestParsePythonSymbols(t *testing.T) {
 def helper(name):
     return name
 `)
-	syms, lang, err := ParseSymbols("auth.py", src)
+	syms, lang, err := parser.ParseSymbols("auth.py", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -67,7 +71,7 @@ export class Client {
 export const fetchUser = (id: string) => id
 export const routes = lazy(() => createRoutes())
 `)
-	syms, lang, err := ParseSymbols("client.ts", src)
+	syms, lang, err := parser.ParseSymbols("client.ts", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -115,7 +119,7 @@ fn build_index() -> HashMap<String, usize> {
     HashMap::new()
 }
 `)
-	syms, lang, err := ParseSymbols("auth.rs", src)
+	syms, lang, err := parser.ParseSymbols("auth.rs", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -162,7 +166,7 @@ public class AuthService {
   }
 }
 `)
-	syms, lang, err := ParseSymbols("AuthService.java", src)
+	syms, lang, err := parser.ParseSymbols("AuthService.java", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -210,7 +214,7 @@ function logout {
   echo "bye"
 }
 `)
-	syms, lang, err := ParseSymbols("script.sh", src)
+	syms, lang, err := parser.ParseSymbols("script.sh", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -246,7 +250,7 @@ deploy() {
   echo ok
 }
 `)
-	syms, lang, err := ParseSymbols("deploy", src)
+	syms, lang, err := parser.ParseSymbols("deploy", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -274,7 +278,7 @@ Outputs:
     Value:
       Ref: AppBucket
 `)
-	syms, lang, err := ParseSymbols("template.yaml", src)
+	syms, lang, err := parser.ParseSymbols("template.yaml", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -308,7 +312,7 @@ func TestParseYAMLGenericConfigSymbols(t *testing.T) {
     search:
       enabled: true
 `)
-	syms, lang, err := ParseSymbols("config.yml", src)
+	syms, lang, err := parser.ParseSymbols("config.yml", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -349,7 +353,7 @@ func TestParseJSONCloudFormationSymbols(t *testing.T) {
     }
   }
 }`)
-	syms, lang, err := ParseSymbols("template.json", src)
+	syms, lang, err := parser.ParseSymbols("template.json", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}
@@ -387,7 +391,7 @@ func TestParseJSONGenericConfigSymbols(t *testing.T) {
     }
   }
 }`)
-	syms, lang, err := ParseSymbols("config.json", src)
+	syms, lang, err := parser.ParseSymbols("config.json", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}

@@ -1,6 +1,10 @@
 package app
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/pusherofbrooms/codesieve/internal/parser"
+)
 
 func TestSymbolIDUsesByteRangeToAvoidSameLineCollisions(t *testing.T) {
 	repoPath := "/tmp/repo"
@@ -32,7 +36,7 @@ func TestSymbolIDUsesByteRangeToAvoidSameLineCollisions(t *testing.T) {
 
 func TestParseJavaScriptDuplicateMethodsOnOneLineIndexAsDistinctSymbols(t *testing.T) {
 	src := []byte(`class A { foo(){} foo(){} }`)
-	parsed, lang, err := ParseSymbols("dup.js", src)
+	parsed, lang, err := parser.ParseSymbols("dup.js", src)
 	if err != nil {
 		t.Fatalf("ParseSymbols error: %v", err)
 	}

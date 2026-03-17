@@ -253,19 +253,6 @@ func (s *Store) upsertRepo(ctx context.Context, path string) (int64, error) {
 	return id, err
 }
 
-func (s *Store) replaceFileSymbols(ctx context.Context, repoID int64, relPath, language, hash string, size int64, modTimeNS int64, parseStatus, content string, symbols []Symbol) error {
-	return s.replaceFilesSymbolsBatch(ctx, repoID, []FileIndexUpdate{{
-		RelPath:     relPath,
-		Language:    language,
-		Hash:        hash,
-		SizeBytes:   size,
-		ModTimeNS:   modTimeNS,
-		ParseStatus: parseStatus,
-		Content:     content,
-		Symbols:     symbols,
-	}})
-}
-
 func (s *Store) replaceFilesSymbolsBatch(ctx context.Context, repoID int64, updates []FileIndexUpdate) error {
 	if len(updates) == 0 {
 		return nil
@@ -719,28 +706,6 @@ func queryContainerPart(q string) string {
 		return q[:dot]
 	}
 	return ""
-}
-
-func (s *Store) listFileSymbols(ctx context.Context, repoPath, relPath string) ([]storedSymbol, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT s.id, s.name, COALESCE(s.qualified_name,''), s.kind, COALESCE(s.signature,''), f.path, s.start_line, s.end_line, s.language
-		FROM symbols s
-		JOIN repos r ON r.id = s.repo_id
-		JOIN files f ON f.id = s.file_id
-		WHERE r.path = ? AND f.path = ?
-		ORDER BY s.start_line`, repoPath, relPath)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []storedSymbol
-	for rows.Next() {
-		var item storedSymbol
-		if err := rows.Scan(&item.ID, &item.Name, &item.QualifiedName, &item.Kind, &item.Signature, &item.FilePath, &item.StartLine, &item.EndLine, &item.Language); err != nil {
-			return nil, err
-		}
-		out = append(out, item)
-	}
-	return out, rows.Err()
 }
 
 type symbolRecord struct {
