@@ -562,6 +562,12 @@ func TestIndexSkipsSecretFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(workdir, ".env"), []byte("API_KEY=AKIA_ENV_VALUE\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile .env: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(workdir, "config"), 0o755); err != nil {
+		t.Fatalf("MkdirAll config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, "config", "client-secret-values.json"), []byte("{\"token\":\"AKIA_JSON\"}\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile client-secret-values.json: %v", err)
+	}
 
 	res, err := svc.Index(ctx, workdir, IndexOptions{})
 	if err != nil {
@@ -578,20 +584,20 @@ func TestIndexSkipsSecretFiles(t *testing.T) {
 		}
 	}
 	if secretSkips < 2 {
-		t.Fatalf("expected at least two SKIPPED_SECRET diagnostics, got %d (%+v)", secretSkips, res.FilesSkipped)
+		t.Fatalf("expected at least two SKIPPED_SECRET diagnostics (.env + secret-named config), got %d (%+v)", secretSkips, res.FilesSkipped)
 	}
 
-	workAbs, err := filepath.Abs(workdir)
+	workAbs, err := normalizeRepoPath(workdir)
 	if err != nil {
-		t.Fatalf("Abs(workdir): %v", err)
+		t.Fatalf("normalizeRepoPath(workdir): %v", err)
 	}
 
 	items, err := svc.store.searchSymbols(ctx, workAbs, SearchSymbolOptions{Query: "leaked", Limit: 10})
 	if err != nil {
 		t.Fatalf("searchSymbols error: %v", err)
 	}
-	if len(items) != 0 {
-		t.Fatalf("expected no symbols from secret files, got %d", len(items))
+	if len(items) == 0 {
+		t.Fatalf("expected source file secrets.py to be indexed in balanced mode")
 	}
 
 	repoID := repoIDForPath(t, svc.store.db, workAbs)

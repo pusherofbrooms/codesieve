@@ -222,13 +222,18 @@ EOF
   echo "$output" | jq -e '[.data.results[] | select(.qualified_name == "A.foo")] | length == 2' >/dev/null
 }
 
-@test "index skips secret paths without indexing their symbols" {
+@test "index applies balanced secret skipping" {
   worktree="$BATS_TEST_TMPDIR/secret-skip"
   cp -R "$FIXTURE" "$worktree"
 
   cat > "$worktree/src/secrets.py" <<'EOF'
 def leaked_key():
-    return "AKIA_SHOULD_NOT_BE_INDEXED"
+    return "AKIA_SHOULD_BE_INDEXED_IN_BALANCED_MODE"
+EOF
+
+  mkdir -p "$worktree/config"
+  cat > "$worktree/config/client-secret-values.json" <<'EOF'
+{"token":"AKIA_JSON_SHOULD_NOT_BE_INDEXED"}
 EOF
 
   cat > "$worktree/.env" <<'EOF'
@@ -245,7 +250,7 @@ EOF
   popd >/dev/null
 
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.results | length == 0' >/dev/null
+  echo "$output" | jq -e '.data.results | length >= 1' >/dev/null
 }
 
 @test "repo outline returns repository summary" {
