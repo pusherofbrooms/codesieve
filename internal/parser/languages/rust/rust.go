@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	tsrust "github.com/pusherofbrooms/codesieve/internal/tslang/rust"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -11,6 +12,10 @@ import (
 const Name = "rust"
 
 var Extensions = []string{".rs"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(_ string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tsrust.Language()), func(root *treesitter.Node) []core.Symbol {

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	tscsharp "github.com/pusherofbrooms/codesieve/internal/tslang/csharp"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -11,6 +12,10 @@ import (
 const Name = "csharp"
 
 var Extensions = []string{".cs", ".csx"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(_ string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tscsharp.Language()), func(root *treesitter.Node) []core.Symbol {

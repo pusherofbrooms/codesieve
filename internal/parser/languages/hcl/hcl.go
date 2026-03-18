@@ -7,6 +7,7 @@ import (
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
 	"github.com/pusherofbrooms/codesieve/internal/parser/filetype"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	tshcl "github.com/pusherofbrooms/codesieve/internal/tslang/hcl"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -14,6 +15,10 @@ import (
 const Name = "hcl"
 
 var Extensions = []string{".tf", ".tfvars", ".hcl"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(path string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tshcl.Language()), func(root *treesitter.Node) []core.Symbol {

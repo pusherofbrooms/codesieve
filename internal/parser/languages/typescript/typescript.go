@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/tsjs"
 	tstypescript "github.com/pusherofbrooms/codesieve/internal/tslang/typescript"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
@@ -12,6 +13,10 @@ import (
 const Name = "typescript"
 
 var Extensions = []string{".ts", ".tsx"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(path string, content []byte) ([]core.Symbol, error) {
 	language := treesitter.NewLanguage(tstypescript.LanguageTypescript())

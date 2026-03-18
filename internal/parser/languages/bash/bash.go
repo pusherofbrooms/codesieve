@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	tsbash "github.com/pusherofbrooms/codesieve/internal/tslang/bash"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -13,6 +14,10 @@ import (
 const Name = "bash"
 
 var Extensions = []string{".sh", ".bash"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 var bashConfigVarPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 

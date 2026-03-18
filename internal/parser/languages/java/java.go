@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	tsjava "github.com/pusherofbrooms/codesieve/internal/tslang/java"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -11,6 +12,10 @@ import (
 const Name = "java"
 
 var Extensions = []string{".java"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(_ string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tsjava.Language()), func(root *treesitter.Node) []core.Symbol {

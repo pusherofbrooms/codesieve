@@ -7,11 +7,16 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 )
 
 const Name = "go"
 
 var Extensions = []string{".go"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(path string, content []byte) ([]core.Symbol, error) {
 	fset := token.NewFileSet()

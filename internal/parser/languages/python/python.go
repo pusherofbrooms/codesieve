@@ -2,6 +2,7 @@ package python
 
 import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	tspython "github.com/pusherofbrooms/codesieve/internal/tslang/python"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -9,6 +10,10 @@ import (
 const Name = "python"
 
 var Extensions = []string{".py"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(_ string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tspython.Language()), func(root *treesitter.Node) []core.Symbol {

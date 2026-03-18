@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 	"github.com/pusherofbrooms/codesieve/internal/parser/structured/cfn"
 	tsjson "github.com/pusherofbrooms/codesieve/internal/tslang/json"
 	treesitter "github.com/tree-sitter/go-tree-sitter"
@@ -13,6 +14,10 @@ import (
 const Name = "json"
 
 var Extensions = []string{".json"}
+
+func init() {
+	register.MustRegister(Name, Parse)
+}
 
 func Parse(path string, content []byte) ([]core.Symbol, error) {
 	return core.ParseWithTreeSitter(content, treesitter.NewLanguage(tsjson.Language()), func(root *treesitter.Node) []core.Symbol {

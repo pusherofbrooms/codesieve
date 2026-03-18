@@ -5,7 +5,23 @@ import (
 	"testing"
 
 	catalog "github.com/pusherofbrooms/codesieve/internal/languages"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/register"
 )
+
+func TestRegisteredParsersMatchLanguageCatalog(t *testing.T) {
+	got := register.Names()
+	slices.Sort(got)
+
+	want := make([]string, 0, len(catalog.All()))
+	for _, item := range catalog.All() {
+		want = append(want, item.Name)
+	}
+	slices.Sort(want)
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("registered parser set mismatch\n got: %v\nwant: %v", got, want)
+	}
+}
 
 func TestSpecsMatchLanguageCatalog(t *testing.T) {
 	specs := Specs()
