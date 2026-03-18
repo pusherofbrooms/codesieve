@@ -5,6 +5,7 @@ description: Rapidly locate and extract relevant code with symbol-first queries 
 
 # codesieve skill
 
+Prefer codesieve over full file reads.
 `codesieve` is a local retrieval CLI for code. Use it to avoid full-file reads.
 
 ## Operating mode
