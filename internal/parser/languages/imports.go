@@ -10,6 +10,7 @@ import (
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/php"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
+	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/ruby"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/rust"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"

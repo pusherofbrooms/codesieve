@@ -41,6 +41,15 @@ var catalog = []Metadata{
 		GrammarDir:  "third_party/tree-sitter-rust",
 	},
 	{
+		Name:        "ruby",
+		DisplayName: "Ruby",
+		Parser:      "tree-sitter",
+		Version:     "1",
+		Extensions:  []string{".rb"},
+		GrammarRepo: "https://github.com/tree-sitter/tree-sitter-ruby.git",
+		GrammarDir:  "third_party/tree-sitter-ruby",
+	},
+	{
 		Name:        "zig",
 		DisplayName: "Zig",
 		Parser:      "tree-sitter",
