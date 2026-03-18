@@ -1,4 +1,4 @@
-# General instructions.
+# This project is a code index and search tool for AI coding agents
 
 ## Conversational behavior
 
