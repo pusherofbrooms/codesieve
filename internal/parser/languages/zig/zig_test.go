@@ -4,6 +4,7 @@ import "testing"
 
 func TestParseZigExtractsTypesMembersFunctionsAndTests(t *testing.T) {
 	src := []byte(`const std = @import("std");
+const answer = 42;
 
 pub const Mode = enum {
     debug,
@@ -40,7 +41,8 @@ test "login" {
 	}
 
 	for _, key := range []string{
-		"constant:std",
+		"import:std",
+		"constant:answer",
 		"enum:Mode",
 		"variant:Mode.debug",
 		"struct:Client",

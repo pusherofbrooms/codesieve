@@ -44,7 +44,7 @@ var catalog = []Metadata{
 		Name:        "zig",
 		DisplayName: "Zig",
 		Parser:      "tree-sitter",
-		Version:     "1",
+		Version:     "2",
 		Extensions:  []string{".zig"},
 		GrammarRepo: "https://github.com/tree-sitter-grammars/tree-sitter-zig.git",
 		GrammarDir:  "third_party/tree-sitter-zig",

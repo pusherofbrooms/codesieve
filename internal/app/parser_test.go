@@ -145,6 +145,7 @@ fn build_index() -> HashMap<String, usize> {
 
 func TestParseZigSymbols(t *testing.T) {
 	src := []byte(`const std = @import("std");
+const answer = 42;
 
 pub const Mode = enum {
     debug,
@@ -178,7 +179,8 @@ test "login" {
 		found[sym.Kind+":"+sym.QualifiedName] = true
 	}
 	for _, key := range []string{
-		"constant:std",
+		"import:std",
+		"constant:answer",
 		"enum:Mode",
 		"variant:Mode.debug",
 		"struct:Client",

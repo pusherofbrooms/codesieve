@@ -63,7 +63,9 @@ func Parse(_ string, content []byte) ([]core.Symbol, error) {
 				}
 
 				kind := "variable"
-				if isConstDeclaration(node, content) {
+				if isImportDeclaration(node, content) {
+					kind = "import"
+				} else if isConstDeclaration(node, content) {
 					kind = "constant"
 				}
 				qualified, parent := core.QualifiedNameFromContainer(containerQualified, name)
@@ -170,6 +172,23 @@ func sanitizeName(name string) string {
 	name = strings.Trim(name, `"'`)
 	name = strings.Join(strings.Fields(name), " ")
 	return name
+}
+
+func isImportDeclaration(node *treesitter.Node, content []byte) bool {
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		if child == nil || child.Kind() != "builtin_function" {
+			continue
+		}
+		ident := child.NamedChild(0)
+		if ident == nil || ident.Kind() != "builtin_identifier" {
+			continue
+		}
+		if strings.TrimSpace(core.NodeText(ident, content)) == "@import" {
+			return true
+		}
+	}
+	return false
 }
 
 func isConstDeclaration(node *treesitter.Node, content []byte) bool {
