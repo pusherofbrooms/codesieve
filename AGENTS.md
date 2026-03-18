@@ -51,6 +51,15 @@ If you need to remove rebuildable local directories or vendored grammar trees, p
   - removes `vendor/`
 - `scripts/remove-vendored-grammar <python|javascript|typescript|bash|hcl|yaml|json|java|rust|csharp>`
   - removes one vendored grammar tree under `third_party/`
-- `scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust]`
+- `scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust|csharp]`
   - keeps only build-required files in vendored grammar trees
+
+## Language grammar discovery helpers
+
+When discussing adding a new language, use the repo discovery scripts instead of manually browsing GitHub org pages:
+
+- `scripts/find-grammar <language-or-query> [--limit=<n>] [--json]`
+  - finds likely grammar repos in `tree-sitter` and `tree-sitter-grammars`
+- `scripts/list-grammars [--json]`
+  - lists candidate grammar repos from those orgs for quick scanning
 

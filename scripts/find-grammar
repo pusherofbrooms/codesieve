@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/lib/grammar-discovery.sh
+source "$script_dir/lib/grammar-discovery.sh"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: scripts/find-grammar <language-or-query> [--limit=<n>] [--json]
+
+Searches likely grammar repositories in:
+- github.com/tree-sitter
+- github.com/tree-sitter-grammars
+
+Examples:
+  scripts/find-grammar csharp
+  scripts/find-grammar terraform --limit=5
+  scripts/find-grammar objective-c --json
+EOF
+}
+
+if [ "$#" -lt 1 ]; then
+  usage
+  exit 1
+fi
+
+query=""
+limit=10
+json_mode=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --limit=*)
+      limit="${arg#--limit=}"
+      ;;
+    --json)
+      json_mode=1
+      ;;
+    --help|-h|help)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "error: unknown flag '$arg'" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      if [ -n "$query" ]; then
+        echo "error: only one query argument is allowed" >&2
+        usage
+        exit 1
+      fi
+      query="$arg"
+      ;;
+  esac
+done
+
+if [ -z "$query" ]; then
+  echo "error: missing query" >&2
+  usage
+  exit 1
+fi
+
+if ! [[ "$limit" =~ ^[0-9]+$ ]] || [ "$limit" -le 0 ]; then
+  echo "error: --limit must be a positive integer" >&2
+  exit 1
+fi
+
+codesieve_grammar_discovery_require_tools
+
+data="$(codesieve_grammar_discovery_collect_json)"
+
+query_lower="$(printf '%s' "$query" | tr '[:upper:]' '[:lower:]')"
+query_norm="$(printf '%s' "$query_lower" | tr -cd 'a-z0-9')"
+
+matches="$(printf '%s\n' "$data" | jq --arg q "$query_lower" --arg qn "$query_norm" --argjson limit "$limit" '
+  def norm(s): s | ascii_downcase | gsub("[^a-z0-9]"; "");
+
+  map(
+    . as $r
+    | ($r.name | sub("^tree-sitter-"; "") | norm(.)) as $name_norm
+    | ($r.name | ascii_downcase) as $name_lower
+    | ($r.description | ascii_downcase) as $desc_lower
+    | .score = (
+        if $name_norm == $qn then 0
+        elif ($name_lower | contains($q)) then 1
+        elif (($name_norm | contains($qn)) or ($qn | contains($name_norm))) then 2
+        elif ($desc_lower | contains($q)) then 3
+        else 99
+        end
+      )
+  )
+  | map(select(.score < 99))
+  | sort_by(.score, -(.stargazers_count // 0), .name)
+  | .[:$limit]
+')"
+
+count="$(printf '%s\n' "$matches" | jq 'length')"
+if [ "$count" -eq 0 ]; then
+  echo "No likely grammar repos found for query: $query" >&2
+  exit 1
+fi
+
+if [ "$json_mode" -eq 1 ]; then
+  printf '%s\n' "$matches" | jq '.'
+  exit 0
+fi
+
+printf '%s\n' "$matches" | jq -r '
+  (["score", "repo", "stars", "license", "last_push", "url"] | @tsv),
+  (.[] | [
+    (.score | tostring),
+    .full_name,
+    ((.stargazers_count // 0) | tostring),
+    (.license // ""),
+    (.pushed_at // ""),
+    .html_url
+  ] | @tsv)
+' | column -t -s $'\t'

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/lib/grammar-discovery.sh
+source "$script_dir/lib/grammar-discovery.sh"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: scripts/list-grammars [--json]
+
+Lists candidate tree-sitter grammar repositories from:
+- github.com/tree-sitter
+- github.com/tree-sitter-grammars
+
+Defaults to a human-readable table. Use --json for machine-readable output.
+EOF
+}
+
+json_mode=0
+if [ "$#" -gt 1 ]; then
+  usage
+  exit 1
+fi
+if [ "$#" -eq 1 ]; then
+  case "$1" in
+    --json) json_mode=1 ;;
+    --help|-h|help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown flag '$1'" >&2
+      usage
+      exit 1
+      ;;
+  esac
+fi
+
+codesieve_grammar_discovery_require_tools
+
+data="$(codesieve_grammar_discovery_collect_json)"
+if [ "$json_mode" -eq 1 ]; then
+  printf '%s\n' "$data" | jq '.'
+  exit 0
+fi
+
+printf '%s\n' "$data" | jq -r '
+  sort_by(-(.stargazers_count // 0), .name)
+  | (["repo", "stars", "license", "last_push", "url"] | @tsv),
+    (.[] | [
+      .full_name,
+      ((.stargazers_count // 0) | tostring),
+      (.license // ""),
+      (.pushed_at // ""),
+      .html_url
+    ] | @tsv)
+' | column -t -s $'\t'
