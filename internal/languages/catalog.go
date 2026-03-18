@@ -41,6 +41,15 @@ var catalog = []Metadata{
 		GrammarDir:  "third_party/tree-sitter-rust",
 	},
 	{
+		Name:        "php",
+		DisplayName: "PHP",
+		Parser:      "tree-sitter",
+		Version:     "1",
+		Extensions:  []string{".php"},
+		GrammarRepo: "https://github.com/tree-sitter/tree-sitter-php.git",
+		GrammarDir:  "third_party/tree-sitter-php",
+	},
+	{
 		Name:        "typescript",
 		DisplayName: "TypeScript / TSX",
 		Parser:      "tree-sitter",

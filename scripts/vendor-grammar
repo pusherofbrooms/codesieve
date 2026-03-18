@@ -99,7 +99,6 @@ commit="$(git -C "$checkout_dir" rev-parse HEAD)"
 
 required=(
   "tree-sitter.json"
-  "src/parser.c"
   "LICENSE"
 )
 for rel in "${required[@]}"; do
@@ -108,6 +107,23 @@ for rel in "${required[@]}"; do
     exit 1
   fi
 done
+
+has_parser=0
+if [ -f "$checkout_dir/src/parser.c" ]; then
+  has_parser=1
+elif command -v jq >/dev/null 2>&1; then
+  while IFS= read -r grammar_path; do
+    if [ -n "$grammar_path" ] && [ -f "$checkout_dir/$grammar_path/src/parser.c" ]; then
+      has_parser=1
+      break
+    fi
+  done < <(jq -r '.grammars[]?.path // empty' "$checkout_dir/tree-sitter.json")
+fi
+
+if [ "$has_parser" -ne 1 ]; then
+  echo "error: missing required parser.c (expected src/parser.c or <grammar-path>/src/parser.c)" >&2
+  exit 1
+fi
 
 # scanner.c is optional for some grammars.
 

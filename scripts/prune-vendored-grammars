@@ -21,6 +21,10 @@ TypeScript additionally keeps:
 - common/scanner.h
 - typescript/src/
 - tsx/src/
+
+PHP additionally keeps:
+- common/scanner.h
+- php/src/
 EOF
 }
 
@@ -80,6 +84,11 @@ for lang in "${targets[@]}"; do
     copy_if_exists "$dir/common/scanner.h" "$newdir/common/scanner.h"
     copy_if_exists "$dir/typescript/src" "$newdir/typescript/src"
     copy_if_exists "$dir/tsx/src" "$newdir/tsx/src"
+  fi
+
+  if [ "$lang" = "php" ]; then
+    copy_if_exists "$dir/common/scanner.h" "$newdir/common/scanner.h"
+    copy_if_exists "$dir/php/src" "$newdir/php/src"
   fi
 
   rm -rf "$dir"

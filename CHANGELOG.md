@@ -9,6 +9,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 - C# language support (`.cs`, `.csx`) via vendored `tree-sitter-c-sharp` grammar, including symbol extraction for namespaces, imports, types, members, and overload-aware methods.
+- PHP language support (`.php`) via vendored `tree-sitter-php` grammar, including symbol extraction for namespaces, imports, classes/interfaces/traits/enums, methods/constructors, properties, constants, enum cases, and top-level functions.
 
 ## [0.1.0] - 2026-03-17
 

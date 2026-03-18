@@ -50,6 +50,23 @@ func TreeSitterBindings() []TreeSitterBinding {
 			})
 			continue
 		}
+		if item.Name == "php" {
+			out = append(out, TreeSitterBinding{
+				Package:    item.Name,
+				GrammarDir: item.GrammarDir,
+				Variants: []TreeSitterBindingVariant{
+					{
+						FileName:        "binding.go",
+						SourceSubdir:    "php/src",
+						FunctionName:    "Language",
+						CSymbol:         "tree_sitter_php",
+						CPPIncludeDir:   "php/src",
+						OptionalScanner: false,
+					},
+				},
+			})
+			continue
+		}
 
 		out = append(out, TreeSitterBinding{
 			Package:    item.Name,
