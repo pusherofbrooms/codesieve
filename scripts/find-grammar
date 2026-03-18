@@ -13,6 +13,8 @@ Searches likely grammar repositories in:
 - github.com/tree-sitter
 - github.com/tree-sitter-grammars
 
+Includes viability checks by default (required files + node-type symbol hints).
+
 Examples:
   scripts/find-grammar csharp
   scripts/find-grammar terraform --limit=5
@@ -103,19 +105,45 @@ if [ "$count" -eq 0 ]; then
   exit 1
 fi
 
+rows=()
+while IFS= read -r row; do
+  full_name="$(printf '%s' "$row" | jq -r '.full_name')"
+  probe="$(codesieve_grammar_discovery_repo_viability_json "$full_name")"
+  merged="$(printf '%s' "$row" | jq -c --argjson probe "$probe" '. + {probe: $probe, verdict: $probe.verdict}')"
+  rows+=("$merged")
+done < <(printf '%s\n' "$matches" | jq -c '.[]')
+
+matches="$(printf '%s\n' "${rows[@]}" | jq -s '.')"
+
 if [ "$json_mode" -eq 1 ]; then
   printf '%s\n' "$matches" | jq '.'
   exit 0
 fi
 
 printf '%s\n' "$matches" | jq -r '
-  (["score", "repo", "stars", "license", "last_push", "url"] | @tsv),
+  def yesno(v): if v then "yes" else "no" end;
+  ([
+    "score",
+    "repo",
+    "stars",
+    "tree-sitter.json",
+    "parser.c",
+    "license",
+    "scanner.c",
+    "symbol_hints",
+    "verdict",
+    "url"
+  ] | @tsv),
   (.[] | [
     (.score | tostring),
     .full_name,
     ((.stargazers_count // 0) | tostring),
-    (.license // ""),
-    (.pushed_at // ""),
+    yesno(.probe.has_tree_sitter_json),
+    yesno(.probe.has_parser_c),
+    yesno(.probe.has_license_file),
+    yesno(.probe.has_scanner_c),
+    ((.probe.symbol_hint_count // 0) | tostring),
+    .verdict,
     .html_url
   ] | @tsv)
 ' | column -t -s $'\t'
