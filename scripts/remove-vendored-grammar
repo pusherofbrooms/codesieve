@@ -1,52 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/language-map.sh
+source "$script_dir/language-map.sh"
+
 if [ "$#" -ne 1 ]; then
-  echo "usage: $0 <python|javascript|typescript|bash|hcl|yaml|json|java|rust|csharp>" >&2
+  echo "usage: $0 <$(IFS='|'; echo "${codesieve_treesitter_languages[*]}")>" >&2
   exit 1
 fi
 
-script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 cd "$repo_root"
 
-case "$1" in
-  python)
-    target="third_party/tree-sitter-python"
-    ;;
-  javascript)
-    target="third_party/tree-sitter-javascript"
-    ;;
-  typescript)
-    target="third_party/tree-sitter-typescript"
-    ;;
-  bash)
-    target="third_party/tree-sitter-bash"
-    ;;
-  hcl)
-    target="third_party/tree-sitter-hcl"
-    ;;
-  yaml)
-    target="third_party/tree-sitter-yaml"
-    ;;
-  json)
-    target="third_party/tree-sitter-json"
-    ;;
-  java)
-    target="third_party/tree-sitter-java"
-    ;;
-  rust)
-    target="third_party/tree-sitter-rust"
-    ;;
-  csharp)
-    target="third_party/tree-sitter-csharp"
-    ;;
-  *)
-    echo "unknown grammar: $1" >&2
-    echo "expected one of: python, javascript, typescript, bash, hcl, yaml, json, java, rust, csharp" >&2
-    exit 1
-    ;;
-esac
+if ! target="$(codesieve_grammar_dir_for_language "$1")"; then
+  echo "unknown grammar: $1" >&2
+  echo "expected one of: $(IFS=', '; echo "${codesieve_treesitter_languages[*]}")" >&2
+  exit 1
+fi
 
 echo "Removing vendored grammar tree: $repo_root/$target"
 rm -rf "$target"

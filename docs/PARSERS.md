@@ -2,18 +2,12 @@
 
 `codesieve` uses structural parsers for symbol extraction.
 
+Canonical language support is generated at `docs/supported_languages.md` from `internal/languages/catalog.go`.
+
 Current parser strategy:
 
 - Go uses the standard library `go/parser`
-- Python uses the official Tree-sitter Go runtime plus a vendored grammar
-- JavaScript uses the official Tree-sitter Go runtime plus a vendored grammar
-- TypeScript / TSX use the official Tree-sitter Go runtime plus vendored grammars
-- Java uses the official Tree-sitter Go runtime plus a vendored grammar
-- Rust uses the official Tree-sitter Go runtime plus a vendored grammar
-- Bash uses the official Tree-sitter Go runtime plus a vendored grammar
-- Terraform/OpenTofu (HCL) uses the official Tree-sitter Go runtime plus a vendored grammar
-- YAML uses the official Tree-sitter Go runtime plus a vendored grammar
-- JSON uses the official Tree-sitter Go runtime plus a vendored grammar
+- other supported languages use the official Tree-sitter Go runtime plus vendored grammars
 
 ## Why grammar sources are vendored
 
@@ -33,18 +27,8 @@ Do not replace vendored grammars with direct upstream grammar Go imports unless 
 
 ## Layout
 
-Vendored grammars live under:
-
-- `third_party/tree-sitter-python`
-- `third_party/tree-sitter-javascript`
-- `third_party/tree-sitter-typescript`
-- `third_party/tree-sitter-java`
-- `third_party/tree-sitter-rust`
-- `third_party/tree-sitter-csharp`
-- `third_party/tree-sitter-bash`
-- `third_party/tree-sitter-hcl`
-- `third_party/tree-sitter-yaml`
-- `third_party/tree-sitter-json`
+Tree-sitter vendored grammar paths are defined from the language catalog and emitted in `scripts/language-map.sh`.
+They live under `third_party/tree-sitter-*`.
 
 Local wrappers live under:
 
@@ -53,6 +37,7 @@ Local wrappers live under:
 - `internal/tslang/typescript`
 - `internal/tslang/java`
 - `internal/tslang/rust`
+- `internal/tslang/csharp`
 - `internal/tslang/bash`
 - `internal/tslang/hcl`
 - `internal/tslang/yaml`
@@ -73,12 +58,12 @@ For TypeScript and JavaScript, shared extraction logic lives under `internal/par
 3. Add a local wrapper in `internal/tslang/<language>/` that exposes a small `Language()` function or variant functions.
 4. Implement symbol extraction in `internal/parser/languages/<language>/`.
    - Reuse helpers in `internal/parser/core/` for node traversal, signature extraction, and container/member symbol shaping where applicable.
-5. Register the language in `internal/parser/registry.go`:
-   - language name
-   - supported file extensions
-   - parser function
-6. Add parser tests and, if needed, fixture coverage.
-7. Validate the full build and test flow.
+5. Add language metadata in `internal/languages/catalog.go` (name, parser type, extensions, grammar repo/dir as applicable).
+6. Register parser wiring in `internal/parser/languages/specs.go` (bind metadata to parse function).
+7. Regenerate derived artifacts:
+   - `nix develop --command go run ./cmd/gen-language-artifacts`
+8. Add parser tests and, if needed, fixture coverage.
+9. Validate the full build and test flow.
 
 ## Parser-versioned incremental reindexing
 
@@ -87,14 +72,14 @@ For TypeScript and JavaScript, shared extraction logic lives under `internal/par
 On reindex, unchanged files are skipped **only** when both content and `parser_version` match.
 This lets parser or grammar upgrades trigger targeted reparsing of only affected language files instead of requiring a full DB wipe.
 
-When parser behavior changes for a language, bump that language version in `internal/parser/languages/specs.go`.
+When parser behavior changes for a language, bump that language `Version` in `internal/languages/catalog.go`.
 
 ## Updating an existing vendored grammar
 
 1. Select the new upstream version.
 2. Replace the vendored source tree under `third_party/` (prefer `scripts/vendor-grammar`, which auto-prunes to required files).
 3. Confirm wrapper include paths still match the vendored layout.
-4. If symbol extraction behavior can change, bump that language `Version` in `internal/parser/languages/specs.go`.
+4. If symbol extraction behavior can change, bump that language `Version` in `internal/languages/catalog.go`.
 5. Re-run formatting and tests.
 6. Recompute `vendorHash` if Nix reports a mismatch.
 
@@ -103,6 +88,7 @@ When parser behavior changes for a language, bump that language version in `inte
 Use the project's Nix workflows:
 
 ```bash
+nix develop --command go run ./cmd/gen-language-artifacts
 nix develop --command go test ./...
 nix develop --command bats tests/bats
 nix flake check
@@ -117,4 +103,3 @@ nix build
 ## Nix note
 
 `flake.nix` uses `proxyVendor = true;` because the official Tree-sitter Go runtime includes C sources and headers that must remain available during the Go build.
-ain available during the Go build.

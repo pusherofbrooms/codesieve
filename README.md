@@ -167,17 +167,9 @@ codesieve show file path/to/file --start-line=20 --end-line=80 --content-only
 
 ## Supported languages (v1)
 
-- Go
-- Python
-- TypeScript / JavaScript
-- Java
-- Rust
-- Bash
-- Terraform / OpenTofu (HCL)
-- YAML (including CloudFormation-oriented symbol extraction)
-- JSON (including CloudFormation-oriented symbol extraction)
+See `docs/supported_languages.md` for the canonical, generated language matrix.
 
-Go parsing uses the standard library parser. Python, TypeScript/JavaScript, Java, Rust, C#, Bash, Terraform/OpenTofu (HCL), YAML, and JSON use Tree-sitter with vendored grammars for reproducible builds.
+Go parsing uses the standard library parser. Other supported languages use Tree-sitter with vendored grammars for reproducible builds.
 
 For parser layout, vendoring policy, and extension guidance, see `docs/PARSERS.md`.
 

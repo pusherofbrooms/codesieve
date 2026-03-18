@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/language-map.sh
+source "$script_dir/language-map.sh"
+
 usage() {
-  cat >&2 <<'EOF'
-usage: scripts/prune-vendored-grammars [all|python|javascript|typescript|bash|hcl|yaml|json|java|rust|csharp]
+  cat >&2 <<EOF
+usage: scripts/prune-vendored-grammars [all|<language>]
+
+Known languages: $(IFS=', '; echo "${codesieve_treesitter_languages[*]}")
 
 Prunes vendored grammar trees down to the files needed by codesieve builds:
 - grammar C sources under src/
@@ -18,7 +24,6 @@ TypeScript additionally keeps:
 EOF
 }
 
-script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 cd "$repo_root"
 
@@ -29,23 +34,11 @@ fi
 
 arg="$1"
 
-langs=(python javascript typescript bash hcl yaml json java rust csharp)
-
 if [ "$arg" = "all" ]; then
-  targets=("${langs[@]}")
+  targets=("${codesieve_treesitter_languages[@]}")
 else
   targets=("$arg")
 fi
-
-is_known_lang() {
-  local x="$1"
-  for l in "${langs[@]}"; do
-    if [ "$x" = "$l" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
 
 copy_if_exists() {
   local src="$1"
@@ -57,7 +50,7 @@ copy_if_exists() {
 }
 
 for lang in "${targets[@]}"; do
-  if ! is_known_lang "$lang"; then
+  if ! codesieve_is_known_treesitter_language "$lang"; then
     echo "error: unknown grammar '$lang'" >&2
     usage
     exit 1

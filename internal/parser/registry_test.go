@@ -1,35 +1,26 @@
 package parser
 
 import (
+	"slices"
 	"strings"
 	"testing"
+
+	catalog "github.com/pusherofbrooms/codesieve/internal/languages"
 )
 
 func TestSupportedLanguagesIncludesBuiltins(t *testing.T) {
 	names := SupportedLanguages()
-	want := map[string]bool{
-		"go":         false,
-		"python":     false,
-		"rust":       false,
-		"typescript": false,
-		"javascript": false,
-		"java":       false,
-		"hcl":        false,
-		"json":       false,
-		"bash":       false,
-		"yaml":       false,
-	}
+	got := slices.Clone(names)
+	slices.Sort(got)
 
-	for _, name := range names {
-		if _, ok := want[name]; ok {
-			want[name] = true
-		}
+	want := make([]string, 0, len(catalog.All()))
+	for _, item := range catalog.All() {
+		want = append(want, item.Name)
 	}
+	slices.Sort(want)
 
-	for name, found := range want {
-		if !found {
-			t.Fatalf("missing language %q in SupportedLanguages: %v", name, names)
-		}
+	if !slices.Equal(got, want) {
+		t.Fatalf("SupportedLanguages mismatch\n got: %v\nwant: %v", got, want)
 	}
 }
 

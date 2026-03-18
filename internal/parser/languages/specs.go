@@ -1,8 +1,10 @@
 package languages
 
 import (
+	"fmt"
 	"slices"
 
+	catalog "github.com/pusherofbrooms/codesieve/internal/languages"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/csharp"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
@@ -17,18 +19,38 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/spec"
 )
 
+func mustByName(name string) catalog.Metadata {
+	meta, ok := catalog.ByName(name)
+	if !ok {
+		panic(fmt.Sprintf("missing language metadata for %s", name))
+	}
+	return meta
+}
+
 func Specs() []spec.Spec {
+	goMeta := mustByName("go")
+	pythonMeta := mustByName("python")
+	rustMeta := mustByName("rust")
+	typeScriptMeta := mustByName("typescript")
+	javaScriptMeta := mustByName("javascript")
+	javaMeta := mustByName("java")
+	csharpMeta := mustByName("csharp")
+	hclMeta := mustByName("hcl")
+	jsonMeta := mustByName("json")
+	bashMeta := mustByName("bash")
+	yamlMeta := mustByName("yaml")
+
 	return []spec.Spec{
-		{Name: golang.Name, Version: "1", Extensions: slices.Clone(golang.Extensions), Parse: golang.Parse},
-		{Name: python.Name, Version: "1", Extensions: slices.Clone(python.Extensions), Parse: python.Parse},
-		{Name: rust.Name, Version: "1", Extensions: slices.Clone(rust.Extensions), Parse: rust.Parse},
-		{Name: typescript.Name, Version: "1", Extensions: slices.Clone(typescript.Extensions), Parse: typescript.Parse},
-		{Name: javascript.Name, Version: "1", Extensions: slices.Clone(javascript.Extensions), Parse: javascript.Parse},
-		{Name: java.Name, Version: "1", Extensions: slices.Clone(java.Extensions), Parse: java.Parse},
-		{Name: csharp.Name, Version: "1", Extensions: slices.Clone(csharp.Extensions), Parse: csharp.Parse},
-		{Name: hcl.Name, Version: "1", Extensions: slices.Clone(hcl.Extensions), Parse: hcl.Parse},
-		{Name: json.Name, Version: "1", Extensions: slices.Clone(json.Extensions), Parse: json.Parse},
-		{Name: bash.Name, Version: "1", Extensions: slices.Clone(bash.Extensions), Parse: bash.Parse},
-		{Name: yaml.Name, Version: "1", Extensions: slices.Clone(yaml.Extensions), Parse: yaml.Parse},
+		{Name: goMeta.Name, Version: goMeta.Version, Extensions: slices.Clone(goMeta.Extensions), Parse: golang.Parse},
+		{Name: pythonMeta.Name, Version: pythonMeta.Version, Extensions: slices.Clone(pythonMeta.Extensions), Parse: python.Parse},
+		{Name: rustMeta.Name, Version: rustMeta.Version, Extensions: slices.Clone(rustMeta.Extensions), Parse: rust.Parse},
+		{Name: typeScriptMeta.Name, Version: typeScriptMeta.Version, Extensions: slices.Clone(typeScriptMeta.Extensions), Parse: typescript.Parse},
+		{Name: javaScriptMeta.Name, Version: javaScriptMeta.Version, Extensions: slices.Clone(javaScriptMeta.Extensions), Parse: javascript.Parse},
+		{Name: javaMeta.Name, Version: javaMeta.Version, Extensions: slices.Clone(javaMeta.Extensions), Parse: java.Parse},
+		{Name: csharpMeta.Name, Version: csharpMeta.Version, Extensions: slices.Clone(csharpMeta.Extensions), Parse: csharp.Parse},
+		{Name: hclMeta.Name, Version: hclMeta.Version, Extensions: slices.Clone(hclMeta.Extensions), Parse: hcl.Parse},
+		{Name: jsonMeta.Name, Version: jsonMeta.Version, Extensions: slices.Clone(jsonMeta.Extensions), Parse: json.Parse},
+		{Name: bashMeta.Name, Version: bashMeta.Version, Extensions: slices.Clone(bashMeta.Extensions), Parse: bash.Parse},
+		{Name: yamlMeta.Name, Version: yamlMeta.Version, Extensions: slices.Clone(yamlMeta.Extensions), Parse: yaml.Parse},
 	}
 }

@@ -8,8 +8,6 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/core"
 	"github.com/pusherofbrooms/codesieve/internal/parser/filetype"
 	parselanguages "github.com/pusherofbrooms/codesieve/internal/parser/languages"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
-	"github.com/pusherofbrooms/codesieve/internal/parser/languages/hcl"
 	"github.com/pusherofbrooms/codesieve/internal/parser/spec"
 )
 
@@ -37,7 +35,7 @@ func SupportedLanguages() []string {
 
 func DetectLanguage(path string) string {
 	if filetype.IsTerraformJSONPath(path) {
-		return hcl.Name
+		return "hcl"
 	}
 	spec := specForPath(path)
 	if spec == nil {
@@ -48,14 +46,14 @@ func DetectLanguage(path string) string {
 
 func DetectLanguageWithContent(path string, content []byte) string {
 	if filetype.IsTerraformJSONPath(path) {
-		return hcl.Name
+		return "hcl"
 	}
 	spec := specForPath(path)
 	if spec != nil {
 		return spec.Name
 	}
 	if isBashShebang(content) {
-		return bash.Name
+		return "bash"
 	}
 	return ""
 }
