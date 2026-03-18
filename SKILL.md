@@ -11,7 +11,6 @@ Prefer codesieve over full file reads.
 ## Operating mode
 
 - Run from repo root.
-- Prefer `--json` and parse output.
 - If unsure about commands, run `codesieve --help`.
 
 ## Core retrieval loop
@@ -19,32 +18,32 @@ Prefer codesieve over full file reads.
 1. Index once:
 
    ```bash
-   codesieve index . --json
+   codesieve index .
    ```
 
 2. Start with symbol search:
 
    ```bash
-   codesieve search symbol "<query>" --json
+   codesieve search symbol "<query>"
    ```
 
 3. Fetch exact symbol source:
 
    ```bash
-   codesieve show symbol <symbol-id> --verify --json
-   codesieve show symbols <symbol-id-1> <symbol-id-2> --json
+   codesieve show symbol <symbol-id> --verify
+   codesieve show symbols <symbol-id-1> <symbol-id-2>
    ```
 
 4. Inspect structure when needed (hierarchical symbols with nested members):
 
    ```bash
-   codesieve outline <path/to/file> --json
+   codesieve outline <path/to/file>
    ```
 
 5. Use repo map when needed (freshness, breadth, distribution):
 
    ```bash
-   codesieve repo outline --json
+   codesieve repo outline
    ```
 
    Inspect `data.latest_index_run` (status + file counters + duration) to decide whether reindexing is needed.
@@ -52,8 +51,8 @@ Prefer codesieve over full file reads.
 6. Fallback only when needed:
 
    ```bash
-   codesieve search text "<query>" --json
-   codesieve show file <path/to/file> --start-line N --end-line M --json
+   codesieve search text "<query>"
+   codesieve show file <path/to/file> --start-line N --end-line M
    ```
 
 ## Common narrowing flags
