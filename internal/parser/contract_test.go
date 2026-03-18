@@ -17,6 +17,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/rust"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/zig"
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	_ ParseFunc = php.Parse
 	_ ParseFunc = bash.Parse
 	_ ParseFunc = yaml.Parse
+	_ ParseFunc = zig.Parse
 )
 
 func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
@@ -53,6 +55,7 @@ func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
 		{name: "php", path: "tests/testdata/languages/php/basic.php"},
 		{name: "bash", path: "tests/testdata/languages/bash/basic.sh"},
 		{name: "yaml", path: "tests/testdata/languages/yaml/basic.yaml"},
+		{name: "zig", path: "tests/testdata/languages/zig/basic.zig"},
 	}
 
 	for _, tc := range tests {

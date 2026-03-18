@@ -49,6 +49,7 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		{path: "script.bash", want: "bash"},
 		{path: "template.yaml", want: "yaml"},
 		{path: "template.yml", want: "yaml"},
+		{path: "main.zig", want: "zig"},
 		{path: "README.md", want: ""},
 	}
 

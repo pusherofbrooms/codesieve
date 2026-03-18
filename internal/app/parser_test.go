@@ -143,6 +143,56 @@ fn build_index() -> HashMap<String, usize> {
 	}
 }
 
+func TestParseZigSymbols(t *testing.T) {
+	src := []byte(`const std = @import("std");
+
+pub const Mode = enum {
+    debug,
+    release,
+};
+
+pub const Client = struct {
+    token: []const u8,
+
+    pub fn login(self: *Client, user: []const u8) bool {
+        return user.len > 0;
+    }
+};
+
+pub fn top(name: []const u8) void {}
+
+test "login" {
+    _ = Client.login("x");
+}
+`)
+	syms, lang, err := parser.ParseSymbols("auth.zig", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "zig" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{
+		"constant:std",
+		"enum:Mode",
+		"variant:Mode.debug",
+		"struct:Client",
+		"field:Client.token",
+		"method:Client.login",
+		"function:top",
+		"test:test.login",
+	} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
 func TestParseJavaSymbols(t *testing.T) {
 	src := []byte(`package sample.auth;
 

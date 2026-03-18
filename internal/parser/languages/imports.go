@@ -13,4 +13,5 @@ import (
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/rust"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/typescript"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/yaml"
+	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/zig"
 )

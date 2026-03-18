@@ -10,6 +10,7 @@ Other docs should link here instead of duplicating language lists.
 | Go (`go`) | go/parser | `.go` | - |
 | Python (`python`) | tree-sitter | `.py` | - |
 | Rust (`rust`) | tree-sitter | `.rs` | - |
+| Zig (`zig`) | tree-sitter | `.zig` | - |
 | PHP (`php`) | tree-sitter | `.php` | - |
 | TypeScript / TSX (`typescript`) | tree-sitter | `.ts`, `.tsx` | - |
 | JavaScript (`javascript`) | tree-sitter | `.js`, `.jsx`, `.mjs`, `.cjs` | - |

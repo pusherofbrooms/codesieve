@@ -1,0 +1,5 @@
+repository=https://github.com/tree-sitter-grammars/tree-sitter-zig.git
+requested_ref=v1.1.2
+resolved_commit=b670c8df85a1568f498aa5c8cae42f51a90473c0
+vendored_at_utc=2026-03-18T20:24:32Z
+script=scripts/vendor-grammar
