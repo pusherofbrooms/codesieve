@@ -102,6 +102,64 @@ export const routes = lazy(() => createRoutes())
 	}
 }
 
+func TestParseJavaScriptSymbols(t *testing.T) {
+	src := []byte(`class Client {
+  login(token) {
+    return token
+  }
+}
+
+const fetchUser = (id) => id
+`)
+	syms, lang, err := parser.ParseSymbols("client.js", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "javascript" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{"class:Client", "method:Client.login", "function:fetchUser"} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
+func TestParsePHPSymbols(t *testing.T) {
+	src := []byte(`<?php
+
+namespace Example\App;
+
+class Service {
+    public function run(): void {}
+}
+
+function helper(): void {}
+`)
+	syms, lang, err := parser.ParseSymbols("basic.php", src)
+	if err != nil {
+		t.Fatalf("ParseSymbols error: %v", err)
+	}
+	if lang != "php" {
+		t.Fatalf("lang = %q", lang)
+	}
+
+	found := map[string]bool{}
+	for _, sym := range syms {
+		found[sym.Kind+":"+sym.QualifiedName] = true
+	}
+	for _, key := range []string{"namespace:Example.App", "class:Example.App.Service", "method:Example.App.Service.run", "function:Example.App.helper"} {
+		if !found[key] {
+			t.Fatalf("missing expected symbol %q in %+v", key, syms)
+		}
+	}
+}
+
 func TestParseRustSymbols(t *testing.T) {
 	src := []byte(`use std::collections::HashMap;
 

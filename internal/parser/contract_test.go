@@ -45,6 +45,7 @@ func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
 		{name: "python", path: "tests/testdata/languages/python/basic.py"},
 		{name: "rust", path: "tests/testdata/languages/rust/basic.rs"},
 		{name: "typescript", path: "tests/testdata/languages/typescript/basic.ts"},
+		{name: "javascript", path: "tests/testdata/languages/javascript/basic.js"},
 		{name: "java", path: "tests/testdata/languages/java/basic.java"},
 		{name: "csharp", path: "tests/testdata/languages/csharp/basic.cs"},
 		{name: "hcl", path: "tests/testdata/languages/hcl/basic.tf"},
