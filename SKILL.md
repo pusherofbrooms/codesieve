@@ -1,6 +1,6 @@
 ---
 name: codesieve
-description: Rapidly locate and extract relevant code with symbol-first queries while minimizing context and full-file reads.
+description: codesieve retrieves precise code context using indexing, symbol search, outlines, and targeted file slices. Use this skill first for code questions, especially when full-file reads would add unnecessary tokens.
 ---
 
 # codesieve skill
