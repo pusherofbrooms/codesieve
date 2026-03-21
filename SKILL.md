@@ -5,7 +5,8 @@ description: codesieve retrieves precise code context using indexing, symbol sea
 
 # codesieve skill
 
-Prefer codesieve over full file reads.
+Prefer codesieve over full file reads for code exploration.
+codesieve is not suitable for document exploration.
 `codesieve` is a local retrieval CLI for code. Use it to avoid full-file reads.
 
 ## Operating mode
