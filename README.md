@@ -1,6 +1,6 @@
 # codesieve
 
-`codesieve` is a local code indexer that lets agents fetch precise symbols, outlines, and file slices.
+`codesieve` is a local code indexer that lets agents fetch precise symbols, outlines, and repository summaries.
 
 ## Quickstart
 
@@ -139,15 +139,6 @@ codesieve index . --json --no-gitignore --max-files=20000 --max-size=2097152
 
 Incremental indexing is parser-version aware: grammar/parser upgrades can trigger selective reparsing without requiring a full DB wipe.
 
-### Text search
-
-```bash
-codesieve search text "token.*expires" --regex --context-lines=2 --json
-```
-
-- `--regex`: treat query as regular expression
-- `--context-lines=<n>`: include surrounding lines in text results
-
 ### Symbol search ranking behavior
 
 `search symbol` ranking prefers exact and qualified-name matches and de-prioritizes common non-primary paths (for example tests, vendored code, and generated output directories).
@@ -157,13 +148,12 @@ codesieve search text "token.*expires" --regex --context-lines=2 --json
 ```bash
 codesieve show symbol <id> --content-only
 codesieve show symbol <id> --context=3 --json
-codesieve show file path/to/file --start-line=20 --end-line=80 --content-only
+codesieve show symbols <id-1> <id-2> --json
 ```
 
 - `show symbol --content-only`: print only symbol source
 - `show symbol --context=<n>`: include surrounding lines for symbol retrieval
-- `show file --start-line/--end-line`: fetch a precise file slice
-- `show file --content-only`: print only file content slice
+- `show symbols`: fetch multiple symbol bodies in one call
 
 ## Supported languages (v1)
 

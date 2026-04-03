@@ -261,18 +261,6 @@ func (s *Service) SearchSymbols(ctx context.Context, opt SearchSymbolOptions) (S
 	return result, nil
 }
 
-func (s *Service) SearchText(ctx context.Context, opt SearchTextOptions) (TextSearchResult, error) {
-	repoPath, err := currentRepoRoot()
-	if err != nil {
-		return TextSearchResult{}, err
-	}
-	items, err := s.store.searchText(ctx, repoPath, opt)
-	if err != nil {
-		return TextSearchResult{}, err
-	}
-	return TextSearchResult{Results: items}, nil
-}
-
 func (s *Service) Outline(ctx context.Context, path string) (OutlineResult, error) {
 	_, relPath, fullPath, err := resolvePathInRepo(path)
 	if err != nil {
@@ -356,23 +344,6 @@ func verifyStoredSymbol(rec *symbolRecord, fullPath string, content []byte) *Sym
 		}
 	}
 	return &SymbolVerification{Verified: false, Reason: "symbol no longer matches indexed location"}
-}
-
-func (s *Service) ShowFile(ctx context.Context, path string, startLine, endLine int) (ShowFileResult, error) {
-	_, relPath, fullPath, err := resolvePathInRepo(path)
-	if err != nil {
-		return ShowFileResult{}, err
-	}
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		return ShowFileResult{}, err
-	}
-	chunk, startLine, endLine, err := SliceLines(string(content), startLine, endLine)
-	if err != nil {
-		return ShowFileResult{}, err
-	}
-	_ = ctx
-	return ShowFileResult{FilePath: relPath, StartLine: startLine, EndLine: endLine, Content: chunk}, nil
 }
 
 func (s *Service) RepoOutline(ctx context.Context) (RepoOutlineResult, error) {

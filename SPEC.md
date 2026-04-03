@@ -196,34 +196,6 @@ Result fields:
 - short signature if available
 - score
 
-### `codesieve search text <query>`
-
-Fallback text search across indexed content.
-
-Examples:
-
-```bash
-codesieve search text "jwt secret"
-codesieve search text "AUTH_HEADER"
-codesieve search text "token.*expires" --regex --context-lines=2
-```
-
-Minimal flags:
-
-- `--lang`
-- `--limit`
-- `--regex`
-- `--context-lines`
-- `--json`
-
-Result fields:
-
-- file path
-- line
-- snippet
-- match range if available
-- optional context lines before/after
-
 ### `codesieve outline <file>`
 
 Return a compact structural outline for one file.
@@ -317,28 +289,6 @@ Output should include:
 - symbol kind counts
 - index age or staleness hint when cheap to compute
 
-### `codesieve show file <path>`
-
-Return a file slice.
-
-Examples:
-
-```bash
-codesieve show file src/auth.py --start-line 10 --end-line 40
-```
-
-Minimal flags:
-
-- `--start-line`
-- `--end-line`
-- `--json`
-
-Output should include:
-
-- file path
-- requested line range
-- source content
-
 ### Milestone 3 optional commands
 
 If promoted by the milestone rule, keep additions narrow:
@@ -372,8 +322,8 @@ The intended agent workflow is:
 3. `codesieve search symbol <query>`
 4. `codesieve outline <file>` if more structure is needed
 5. `codesieve show symbol <id>` or `codesieve show symbols <id...>` for exact source
-6. `codesieve search text <query>` only when structural search is not enough
-7. `codesieve show file <path> --start-line --end-line` as a final fallback
+6. native `rg` only when structural search is not enough
+7. native `read` only when live file verification is needed
 
 This workflow should be documented for agents and supported cleanly by the CLI.
 
@@ -393,7 +343,6 @@ Version 1 should use structural parsing, not deep semantic analysis.
 - hash files for incremental reindexing
 - parse supported languages into a normalized symbol model
 - store symbol ranges for exact source retrieval
-- support text search over indexed content
 
 ### Not required for v1
 
@@ -504,12 +453,10 @@ Responsibilities:
 Responsibilities:
 
 - search symbols
-- search text
 - build file outlines
 - build repo outline summaries
 - retrieve exact symbol content
 - retrieve multiple symbols in one call
-- retrieve file slices
 - optionally resolve lightweight importer relationships
 
 ---
@@ -734,8 +681,6 @@ Deliver:
 
 Deliver:
 
-- `search text` with optional regex and context lines
-- `show file` with line ranges
 - `show symbols` batch symbol retrieval
 - hierarchical `outline` JSON output
 - `repo outline`
@@ -777,8 +722,7 @@ It should do a few things well:
 
 - index code
 - search symbols
-- search text
 - outline files
-- return exact source slices
+- return exact symbol source
 
 If it helps agents stop reading entire files unnecessarily, it is succeeding.

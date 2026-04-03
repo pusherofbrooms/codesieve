@@ -78,30 +78,6 @@ type SymbolSearchResult struct {
 	Results []SymbolSearchItem `json:"results"`
 }
 
-type SearchTextOptions struct {
-	Query         string
-	Limit         int
-	Lang          string
-	PathSubstr    string
-	CaseSensitive bool
-	Regex         bool
-	ContextLines  int
-}
-
-type TextSearchItem struct {
-	FilePath      string   `json:"file_path"`
-	Line          int      `json:"line"`
-	Snippet       string   `json:"snippet"`
-	StartCol      int      `json:"start_col,omitempty"`
-	EndCol        int      `json:"end_col,omitempty"`
-	ContextBefore []string `json:"context_before,omitempty"`
-	ContextAfter  []string `json:"context_after,omitempty"`
-}
-
-type TextSearchResult struct {
-	Results []TextSearchItem `json:"results"`
-}
-
 type OutlineSymbol struct {
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
@@ -177,13 +153,6 @@ type BatchError struct {
 type ShowSymbolsResult struct {
 	Symbols []ShowSymbolResult `json:"symbols"`
 	Errors  []BatchError       `json:"errors,omitempty"`
-}
-
-type ShowFileResult struct {
-	FilePath  string `json:"file_path"`
-	StartLine int    `json:"start_line"`
-	EndLine   int    `json:"end_line"`
-	Content   string `json:"content"`
 }
 
 type Symbol = parser.Symbol

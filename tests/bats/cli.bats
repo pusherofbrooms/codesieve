@@ -125,51 +125,6 @@ EOF
   echo "$output" | jq -e '.data.verification.verified == false' >/dev/null
 }
 
-@test "search text and show file return narrow content" {
-  env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json >/dev/null
-
-  pushd "$FIXTURE" >/dev/null
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text AUTH_HEADER --json
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.results[] | select(.file_path == "src/client.ts")' >/dev/null
-
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show file src/client.ts --start-line 7 --end-line 11 --json
-  popd >/dev/null
-
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.file_path == "src/client.ts"' >/dev/null
-  echo "$output" | jq -e '.data.start_line == 7 and .data.end_line == 11' >/dev/null
-  echo "$output" | jq -e '.data.content | contains("AUTH_HEADER")' >/dev/null
-}
-
-@test "search text supports regex/context and uses indexed content" {
-  worktree="$BATS_TEST_TMPDIR/text-worktree"
-  cp -R "$FIXTURE" "$worktree"
-
-  env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json >/dev/null
-
-  pushd "$worktree" >/dev/null
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text 'return\s+id;' --regex --context-lines 1 --json
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.ok == true' >/dev/null
-  echo "$output" | jq -e '.data.results[] | select(.file_path == "src/client.ts" and (.context_before | length) >= 1)' >/dev/null
-
-  # Mutate file after indexing; results should still come from indexed content.
-  cat > src/client.ts <<'EOF'
-export class Client {
-  login(token: string) {
-    return token;
-  }
-}
-EOF
-
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text AUTH_HEADER --json
-  popd >/dev/null
-
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.results[] | select(.file_path == "src/client.ts")' >/dev/null
-}
-
 @test "reindex skips unchanged files" {
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json
   [ "$status" -eq 0 ]
@@ -258,19 +213,10 @@ EOF
 
   pushd "$FIXTURE" >/dev/null
   run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol Login --limit 1 --kind function --json
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.results | length == 1' >/dev/null
-
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text AUTH_HEADER --path-substr src/client.ts --limit 1 --json
-  [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.results | length == 1' >/dev/null
-  echo "$output" | jq -e '.data.results[0].file_path == "src/client.ts"' >/dev/null
-
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show file src/client.ts --start-line 7 --end-line 11 --json
   popd >/dev/null
 
   [ "$status" -eq 0 ]
-  echo "$output" | jq -e '.data.start_line == 7 and .data.end_line == 11' >/dev/null
+  echo "$output" | jq -e '.data.results | length == 1' >/dev/null
 }
 
 @test "repo outline returns repository summary" {
@@ -312,7 +258,7 @@ EOF
 @test "subcommand help exits successfully" {
   run "$TEST_BIN" search --help
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Usage: codesieve search <symbol|text> <query> [flags]"* ]]
+  [[ "$output" == *"Usage: codesieve search symbol <query> [flags]"* ]]
 
   run "$TEST_BIN" show symbol --help
   [ "$status" -eq 0 ]

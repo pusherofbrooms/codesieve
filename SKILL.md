@@ -49,12 +49,10 @@ codesieve is not suitable for document exploration.
 
    Inspect `data.latest_index_run` (status + file counters + duration) to decide whether reindexing is needed.
 
-6. Fallback only when needed:
+6. Fall back to native tools only when needed:
 
-   ```bash
-   codesieve search text "<query>"
-   codesieve show file <path/to/file> --start-line N --end-line M
-   ```
+   - use `rg` for plain text search
+   - use `read` for exact file contents and line slices
 
 ## Common narrowing flags
 
@@ -63,8 +61,6 @@ codesieve is not suitable for document exploration.
 - `--path-substr <substring>`
 - `--kind <kind>` (symbol search only)
 - `--case-sensitive`
-
-Do not pass raw path operands after `search text` like `src test docs`; use `--path-substr <substring>` instead.
 
 ## Less-common flags (discover as needed)
 
@@ -77,5 +73,5 @@ Use `codesieve --help` to discover uncommon flags and command forms.
 - Escalate breadth only when results are ambiguous, conflicting, or clearly incomplete.
 - Prefer higher-signal retrieval first (`search symbol`, `show symbol`) before broad scans.
 - Use `repo outline` for repo-level context (freshness, scale, language/path distribution), not by default for every query.
-- Use `search text` and `show file` as fallback tools when symbol-based retrieval is insufficient.
+- Use native tools (`rg`, `read`) only after symbol-based retrieval is insufficient.
 - When confidence is low, state uncertainty and run one targeted follow-up query instead of broad exploratory sweeps.

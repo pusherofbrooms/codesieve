@@ -124,27 +124,21 @@ func handleIndex(ctx context.Context, svc *app.Service, args []string, start tim
 
 func handleSearch(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
 	if len(args) == 0 {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search symbol <query>"))
 	}
 	if isHelpArg(args[0]) {
 		printSearchUsage()
 		return 0
 	}
 
-	subcommand := args[0]
-	if subcommand != "symbol" && subcommand != "text" {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
+	if args[0] != "symbol" {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search symbol <query>"))
 	}
-
 	if len(args) < 2 {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve search symbol <query>"))
 	}
 	if isHelpArg(args[1]) {
-		if subcommand == "symbol" {
-			printSearchSymbolUsage()
-		} else {
-			printSearchTextUsage()
-		}
+		printSearchSymbolUsage()
 		return 0
 	}
 
@@ -154,18 +148,12 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 	kind := ""
 	pathSubstr := ""
 	caseSensitive := false
-	regexMode := false
-	contextLines := 0
 	query := args[1]
 	for i := 2; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case isHelpArg(arg):
-			if subcommand == "symbol" {
-				printSearchSymbolUsage()
-			} else {
-				printSearchTextUsage()
-			}
+			printSearchSymbolUsage()
 			return 0
 		case arg == "--json":
 			jsonMode = true
@@ -203,40 +191,16 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 			i += consumed - 1
 		case arg == "--case-sensitive":
 			caseSensitive = true
-		case arg == "--regex":
-			regexMode = true
-		case hasFlagPrefix(arg, "--context-lines"):
-			value, consumed, err := parseFlagValue(args[i:], "--context-lines")
-			if err != nil {
-				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context-lines"))
-			}
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context-lines"))
-			}
-			contextLines = v
-			i += consumed - 1
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
 		}
 	}
 
-	switch subcommand {
-	case "symbol":
-		result, err := svc.SearchSymbols(ctx, app.SearchSymbolOptions{Query: query, Limit: limit, Lang: lang, Kind: kind, PathSubstr: pathSubstr, CaseSensitive: caseSensitive})
-		if err != nil {
-			return printError(start, jsonMode, err)
-		}
-		return printSuccess(start, jsonMode, result)
-	case "text":
-		result, err := svc.SearchText(ctx, app.SearchTextOptions{Query: query, Limit: limit, Lang: lang, PathSubstr: pathSubstr, CaseSensitive: caseSensitive, Regex: regexMode, ContextLines: contextLines})
-		if err != nil {
-			return printError(start, jsonMode, err)
-		}
-		return printSuccess(start, jsonMode, result)
-	default:
-		return printError(start, jsonMode, app.ErrInvalidArgs("usage: codesieve search <symbol|text> <query>"))
+	result, err := svc.SearchSymbols(ctx, app.SearchSymbolOptions{Query: query, Limit: limit, Lang: lang, Kind: kind, PathSubstr: pathSubstr, CaseSensitive: caseSensitive})
+	if err != nil {
+		return printError(start, jsonMode, err)
 	}
+	return printSuccess(start, jsonMode, result)
 }
 
 func handleOutline(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
@@ -301,7 +265,7 @@ func handleRepo(ctx context.Context, svc *app.Service, args []string, start time
 
 func handleShow(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
 	if len(args) == 0 {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols> <target>"))
 	}
 	if isHelpArg(args[0]) {
 		printShowUsage()
@@ -309,12 +273,11 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 	}
 
 	subcommand := args[0]
-	if subcommand != "symbol" && subcommand != "symbols" && subcommand != "file" {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
+	if subcommand != "symbol" && subcommand != "symbols" {
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols> <target>"))
 	}
-
 	if len(args) < 2 {
-		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
+		return printError(start, false, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols> <target>"))
 	}
 	if isHelpArg(args[1]) {
 		switch subcommand {
@@ -322,8 +285,6 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 			printShowSymbolUsage()
 		case "symbols":
 			printShowSymbolsUsage()
-		default:
-			printShowFileUsage()
 		}
 		return 0
 	}
@@ -335,8 +296,6 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 	contentOnly := false
 	verify := false
 	contextLines := 0
-	startLine := 0
-	endLine := 0
 	symbolIDs := []string{}
 	if subcommand == "symbols" {
 		symbolIDs = append(symbolIDs, args[1])
@@ -354,8 +313,6 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 				printShowSymbolUsage()
 			case "symbols":
 				printShowSymbolsUsage()
-			default:
-				printShowFileUsage()
 			}
 			return 0
 		case arg == "--json":
@@ -374,28 +331,6 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context"))
 			}
 			contextLines = v
-			i += consumed - 1
-		case hasFlagPrefix(arg, "--start-line"):
-			value, consumed, err := parseFlagValue(args[i:], "--start-line")
-			if err != nil {
-				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --start-line"))
-			}
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --start-line"))
-			}
-			startLine = v
-			i += consumed - 1
-		case hasFlagPrefix(arg, "--end-line"):
-			value, consumed, err := parseFlagValue(args[i:], "--end-line")
-			if err != nil {
-				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --end-line"))
-			}
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --end-line"))
-			}
-			endLine = v
 			i += consumed - 1
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
@@ -417,8 +352,8 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 		}
 		return printSuccess(start, jsonMode, result)
 	case "symbols":
-		if contextLines != 0 || startLine != 0 || endLine != 0 || verify {
-			return printError(start, jsonMode, app.ErrInvalidArgs("--context, --start-line, --end-line, and --verify are only valid for specific show subcommands"))
+		if contextLines != 0 || verify {
+			return printError(start, jsonMode, app.ErrInvalidArgs("--context and --verify are only valid for 'show symbol'"))
 		}
 		result, err := svc.ShowSymbols(ctx, symbolIDs)
 		if err != nil {
@@ -434,24 +369,8 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 			return 0
 		}
 		return printSuccess(start, jsonMode, result)
-	case "file":
-		if contextLines != 0 || verify {
-			return printError(start, jsonMode, app.ErrInvalidArgs("--context and --verify are only valid for 'show symbol'"))
-		}
-		result, err := svc.ShowFile(ctx, args[1], startLine, endLine)
-		if err != nil {
-			return printError(start, jsonMode, err)
-		}
-		if contentOnly {
-			fmt.Print(result.Content)
-			if !strings.HasSuffix(result.Content, "\n") {
-				fmt.Println()
-			}
-			return 0
-		}
-		return printSuccess(start, jsonMode, result)
 	default:
-		return printError(start, jsonMode, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols|file> <target>"))
+		return printError(start, jsonMode, app.ErrInvalidArgs("usage: codesieve show <symbol|symbols> <target>"))
 	}
 }
 
@@ -485,12 +404,10 @@ func printUsage() {
 	fmt.Println("  version")
 	fmt.Println("  index <path>")
 	fmt.Println("  search symbol <query>")
-	fmt.Println("  search text <query>")
 	fmt.Println("  outline <file>")
 	fmt.Println("  repo outline")
 	fmt.Println("  show symbol <id>")
 	fmt.Println("  show symbols <id...>")
-	fmt.Println("  show file <path>")
 	fmt.Println("")
 	fmt.Println("Run 'codesieve <command> --help' for command-specific help.")
 }
@@ -507,9 +424,9 @@ func printIndexUsage() {
 }
 
 func printSearchUsage() {
-	fmt.Println("Usage: codesieve search <symbol|text> <query> [flags]")
+	fmt.Println("Usage: codesieve search symbol <query> [flags]")
 	fmt.Println("")
-	fmt.Println("Run 'codesieve search symbol --help' or 'codesieve search text --help' for details.")
+	fmt.Println("Run 'codesieve search symbol --help' for details.")
 }
 
 func printSearchSymbolUsage() {
@@ -522,19 +439,6 @@ func printSearchSymbolUsage() {
 	fmt.Println("  --kind <kind>")
 	fmt.Println("  --path-substr <substring>")
 	fmt.Println("  --case-sensitive")
-}
-
-func printSearchTextUsage() {
-	fmt.Println("Usage: codesieve search text <query> [flags]")
-	fmt.Println("")
-	fmt.Println("Flags:")
-	fmt.Println("  --json")
-	fmt.Println("  --limit <n>")
-	fmt.Println("  --lang <language>")
-	fmt.Println("  --path-substr <substring>")
-	fmt.Println("  --case-sensitive")
-	fmt.Println("  --regex")
-	fmt.Println("  --context-lines <n>")
 }
 
 func printOutlineUsage() {
@@ -558,9 +462,9 @@ func printRepoOutlineUsage() {
 }
 
 func printShowUsage() {
-	fmt.Println("Usage: codesieve show <symbol|symbols|file> <target> [flags]")
+	fmt.Println("Usage: codesieve show <symbol|symbols> <target> [flags]")
 	fmt.Println("")
-	fmt.Println("Run 'codesieve show symbol --help', 'codesieve show symbols --help', or 'codesieve show file --help' for details.")
+	fmt.Println("Run 'codesieve show symbol --help' or 'codesieve show symbols --help' for details.")
 }
 
 func printShowSymbolUsage() {
@@ -579,16 +483,6 @@ func printShowSymbolsUsage() {
 	fmt.Println("Flags:")
 	fmt.Println("  --json")
 	fmt.Println("  --content-only")
-}
-
-func printShowFileUsage() {
-	fmt.Println("Usage: codesieve show file <path> [flags]")
-	fmt.Println("")
-	fmt.Println("Flags:")
-	fmt.Println("  --json")
-	fmt.Println("  --content-only")
-	fmt.Println("  --start-line <n>")
-	fmt.Println("  --end-line <n>")
 }
 
 func printOutlineSymbols(symbols []app.OutlineSymbol, depth int) {
@@ -625,10 +519,6 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 	case app.SymbolSearchResult:
 		for _, item := range v.Results {
 			fmt.Printf("%s\t%s\t%s:%d\n", item.ID, item.Kind, item.FilePath, item.Line)
-		}
-	case app.TextSearchResult:
-		for _, item := range v.Results {
-			fmt.Printf("%s:%d\t%s\n", item.FilePath, item.Line, item.Snippet)
 		}
 	case app.OutlineResult:
 		fmt.Printf("%s (%s)\n", v.FilePath, v.Language)
@@ -684,8 +574,6 @@ func printSuccess(start time.Time, jsonMode bool, data any) int {
 		for _, e := range v.Errors {
 			fmt.Printf("%s: %s (%s)\n", e.ID, e.Message, e.Code)
 		}
-	case app.ShowFileResult:
-		fmt.Printf("%s:%d-%d\n\n%s", v.FilePath, v.StartLine, v.EndLine, v.Content)
 	default:
 		fmt.Printf("%v\n", data)
 	}
