@@ -35,7 +35,7 @@ setup() {
   env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json >/dev/null
 
   pushd "$FIXTURE" >/dev/null
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol Login --kind=function --json
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol Login --kind function --json
   popd >/dev/null
 
   [ "$status" -eq 0 ]
@@ -133,7 +133,7 @@ EOF
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.data.results[] | select(.file_path == "src/client.ts")' >/dev/null
 
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show file src/client.ts --start-line=7 --end-line=11 --json
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show file src/client.ts --start-line 7 --end-line 11 --json
   popd >/dev/null
 
   [ "$status" -eq 0 ]
@@ -149,7 +149,7 @@ EOF
   env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$worktree" --json >/dev/null
 
   pushd "$worktree" >/dev/null
-  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text 'return\s+id;' --regex --context-lines=1 --json
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text 'return\s+id;' --regex --context-lines 1 --json
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.ok == true' >/dev/null
   echo "$output" | jq -e '.data.results[] | select(.file_path == "src/client.ts" and (.context_before | length) >= 1)' >/dev/null
@@ -251,6 +251,26 @@ EOF
 
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.data.results | length >= 1' >/dev/null
+}
+
+@test "space-separated flag values are accepted" {
+  env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" index "$FIXTURE" --json >/dev/null
+
+  pushd "$FIXTURE" >/dev/null
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search symbol Login --limit 1 --kind function --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.results | length == 1' >/dev/null
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" search text AUTH_HEADER --path-substr src/client.ts --limit 1 --json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.results | length == 1' >/dev/null
+  echo "$output" | jq -e '.data.results[0].file_path == "src/client.ts"' >/dev/null
+
+  run env CODESIEVE_DB_PATH="$DB_PATH" "$TEST_BIN" show file src/client.ts --start-line 7 --end-line 11 --json
+  popd >/dev/null
+
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.data.start_line == 7 and .data.end_line == 11' >/dev/null
 }
 
 @test "repo outline returns repository summary" {

@@ -76,7 +76,8 @@ func handleIndex(ctx context.Context, svc *app.Service, args []string, start tim
 	path := args[0]
 	opt := app.IndexOptions{MaxFiles: 10000, MaxSize: 1024 * 1024}
 	jsonMode := false
-	for _, arg := range args[1:] {
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
 		switch {
 		case isHelpArg(arg):
 			printIndexUsage()
@@ -87,18 +88,28 @@ func handleIndex(ctx context.Context, svc *app.Service, args []string, start tim
 			opt.Force = true
 		case arg == "--no-gitignore":
 			opt.NoGitignore = true
-		case strings.HasPrefix(arg, "--max-files="):
-			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--max-files="))
+		case hasFlagPrefix(arg, "--max-files"):
+			value, consumed, err := parseFlagValue(args[i:], "--max-files")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --max-files"))
+			}
+			v, err := strconv.Atoi(value)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --max-files"))
 			}
 			opt.MaxFiles = v
-		case strings.HasPrefix(arg, "--max-size="):
-			v, err := strconv.ParseInt(strings.TrimPrefix(arg, "--max-size="), 10, 64)
+			i += consumed - 1
+		case hasFlagPrefix(arg, "--max-size"):
+			value, consumed, err := parseFlagValue(args[i:], "--max-size")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --max-size"))
+			}
+			v, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --max-size"))
 			}
 			opt.MaxSize = v
+			i += consumed - 1
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
 		}
@@ -146,7 +157,8 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 	regexMode := false
 	contextLines := 0
 	query := args[1]
-	for _, arg := range args[2:] {
+	for i := 2; i < len(args); i++ {
+		arg := args[i]
 		switch {
 		case isHelpArg(arg):
 			if subcommand == "symbol" {
@@ -157,28 +169,53 @@ func handleSearch(ctx context.Context, svc *app.Service, args []string, start ti
 			return 0
 		case arg == "--json":
 			jsonMode = true
-		case strings.HasPrefix(arg, "--limit="):
-			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--limit="))
+		case hasFlagPrefix(arg, "--limit"):
+			value, consumed, err := parseFlagValue(args[i:], "--limit")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --limit"))
+			}
+			v, err := strconv.Atoi(value)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --limit"))
 			}
 			limit = v
-		case strings.HasPrefix(arg, "--lang="):
-			lang = strings.TrimPrefix(arg, "--lang=")
-		case strings.HasPrefix(arg, "--kind="):
-			kind = strings.TrimPrefix(arg, "--kind=")
-		case strings.HasPrefix(arg, "--path-substr="):
-			pathSubstr = strings.TrimPrefix(arg, "--path-substr=")
+			i += consumed - 1
+		case hasFlagPrefix(arg, "--lang"):
+			value, consumed, err := parseFlagValue(args[i:], "--lang")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --lang"))
+			}
+			lang = value
+			i += consumed - 1
+		case hasFlagPrefix(arg, "--kind"):
+			value, consumed, err := parseFlagValue(args[i:], "--kind")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --kind"))
+			}
+			kind = value
+			i += consumed - 1
+		case hasFlagPrefix(arg, "--path-substr"):
+			value, consumed, err := parseFlagValue(args[i:], "--path-substr")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --path-substr"))
+			}
+			pathSubstr = value
+			i += consumed - 1
 		case arg == "--case-sensitive":
 			caseSensitive = true
 		case arg == "--regex":
 			regexMode = true
-		case strings.HasPrefix(arg, "--context-lines="):
-			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--context-lines="))
+		case hasFlagPrefix(arg, "--context-lines"):
+			value, consumed, err := parseFlagValue(args[i:], "--context-lines")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context-lines"))
+			}
+			v, err := strconv.Atoi(value)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context-lines"))
 			}
 			contextLines = v
+			i += consumed - 1
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
 		}
@@ -304,7 +341,8 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 	if subcommand == "symbols" {
 		symbolIDs = append(symbolIDs, args[1])
 	}
-	for _, arg := range args[2:] {
+	for i := 2; i < len(args); i++ {
+		arg := args[i]
 		if subcommand == "symbols" && !strings.HasPrefix(arg, "-") {
 			symbolIDs = append(symbolIDs, arg)
 			continue
@@ -326,24 +364,39 @@ func handleShow(ctx context.Context, svc *app.Service, args []string, start time
 			contentOnly = true
 		case arg == "--verify":
 			verify = true
-		case strings.HasPrefix(arg, "--context="):
-			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--context="))
+		case hasFlagPrefix(arg, "--context"):
+			value, consumed, err := parseFlagValue(args[i:], "--context")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context"))
+			}
+			v, err := strconv.Atoi(value)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --context"))
 			}
 			contextLines = v
-		case strings.HasPrefix(arg, "--start-line="):
-			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--start-line="))
+			i += consumed - 1
+		case hasFlagPrefix(arg, "--start-line"):
+			value, consumed, err := parseFlagValue(args[i:], "--start-line")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --start-line"))
+			}
+			v, err := strconv.Atoi(value)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --start-line"))
 			}
 			startLine = v
-		case strings.HasPrefix(arg, "--end-line="):
-			v, err := strconv.Atoi(strings.TrimPrefix(arg, "--end-line="))
+			i += consumed - 1
+		case hasFlagPrefix(arg, "--end-line"):
+			value, consumed, err := parseFlagValue(args[i:], "--end-line")
+			if err != nil {
+				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --end-line"))
+			}
+			v, err := strconv.Atoi(value)
 			if err != nil {
 				return printError(start, jsonMode, app.ErrInvalidArgs("invalid --end-line"))
 			}
 			endLine = v
+			i += consumed - 1
 		default:
 			return printError(start, jsonMode, app.ErrInvalidArgs("unknown flag: "+arg))
 		}
@@ -406,6 +459,24 @@ func isHelpArg(arg string) bool {
 	return arg == "help" || arg == "--help" || arg == "-h"
 }
 
+func hasFlagPrefix(arg, name string) bool {
+	return arg == name || strings.HasPrefix(arg, name+"=")
+}
+
+func parseFlagValue(args []string, name string) (string, int, error) {
+	if len(args) == 0 {
+		return "", 0, fmt.Errorf("missing %s", name)
+	}
+	arg := args[0]
+	if strings.HasPrefix(arg, name+"=") {
+		return strings.TrimPrefix(arg, name+"="), 1, nil
+	}
+	if arg == name && len(args) >= 2 {
+		return args[1], 2, nil
+	}
+	return "", 0, fmt.Errorf("missing %s", name)
+}
+
 func printUsage() {
 	fmt.Println("codesieve <command>")
 	fmt.Println("")
@@ -431,8 +502,8 @@ func printIndexUsage() {
 	fmt.Println("  --json")
 	fmt.Println("  --force")
 	fmt.Println("  --no-gitignore")
-	fmt.Println("  --max-files=<n>")
-	fmt.Println("  --max-size=<bytes>")
+	fmt.Println("  --max-files <n>")
+	fmt.Println("  --max-size <bytes>")
 }
 
 func printSearchUsage() {
@@ -446,10 +517,10 @@ func printSearchSymbolUsage() {
 	fmt.Println("")
 	fmt.Println("Flags:")
 	fmt.Println("  --json")
-	fmt.Println("  --limit=<n>")
-	fmt.Println("  --lang=<language>")
-	fmt.Println("  --kind=<kind>")
-	fmt.Println("  --path-substr=<substring>")
+	fmt.Println("  --limit <n>")
+	fmt.Println("  --lang <language>")
+	fmt.Println("  --kind <kind>")
+	fmt.Println("  --path-substr <substring>")
 	fmt.Println("  --case-sensitive")
 }
 
@@ -458,12 +529,12 @@ func printSearchTextUsage() {
 	fmt.Println("")
 	fmt.Println("Flags:")
 	fmt.Println("  --json")
-	fmt.Println("  --limit=<n>")
-	fmt.Println("  --lang=<language>")
-	fmt.Println("  --path-substr=<substring>")
+	fmt.Println("  --limit <n>")
+	fmt.Println("  --lang <language>")
+	fmt.Println("  --path-substr <substring>")
 	fmt.Println("  --case-sensitive")
 	fmt.Println("  --regex")
-	fmt.Println("  --context-lines=<n>")
+	fmt.Println("  --context-lines <n>")
 }
 
 func printOutlineUsage() {
@@ -498,7 +569,7 @@ func printShowSymbolUsage() {
 	fmt.Println("Flags:")
 	fmt.Println("  --json")
 	fmt.Println("  --content-only")
-	fmt.Println("  --context=<n>")
+	fmt.Println("  --context <n>")
 	fmt.Println("  --verify")
 }
 
@@ -516,8 +587,8 @@ func printShowFileUsage() {
 	fmt.Println("Flags:")
 	fmt.Println("  --json")
 	fmt.Println("  --content-only")
-	fmt.Println("  --start-line=<n>")
-	fmt.Println("  --end-line=<n>")
+	fmt.Println("  --start-line <n>")
+	fmt.Println("  --end-line <n>")
 }
 
 func printOutlineSymbols(symbols []app.OutlineSymbol, depth int) {

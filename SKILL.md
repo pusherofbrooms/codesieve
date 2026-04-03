@@ -56,13 +56,17 @@ codesieve is not suitable for document exploration.
    codesieve show file <path/to/file> --start-line N --end-line M
    ```
 
+   Prefer the natural space-separated flag form in examples and usage. The CLI also accepts `--flag=value` for compatibility.
+
 ## Common narrowing flags
 
-- `--limit=<n>`
-- `--lang=<language>`
-- `--path-substr=<substring>`
-- `--kind=<kind>` (symbol search only)
+- `--limit <n>`
+- `--lang <language>`
+- `--path-substr <substring>`
+- `--kind <kind>` (symbol search only)
 - `--case-sensitive`
+
+Do not pass raw path operands after `search text` like `src test docs`; use `--path-substr <substring>` instead.
 
 ## Less-common flags (discover as needed)
 
