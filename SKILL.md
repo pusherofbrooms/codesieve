@@ -56,8 +56,6 @@ codesieve is not suitable for document exploration.
    codesieve show file <path/to/file> --start-line N --end-line M
    ```
 
-   Prefer the natural space-separated flag form in examples and usage. The CLI also accepts `--flag=value` for compatibility.
-
 ## Common narrowing flags
 
 - `--limit <n>`
