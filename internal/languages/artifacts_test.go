@@ -3,6 +3,7 @@ package languages
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -34,7 +35,12 @@ func TestGeneratedLanguageMapShellIsUpToDate(t *testing.T) {
 
 func TestRenderSupportedLanguagesSummary(t *testing.T) {
 	got := RenderSupportedLanguagesSummary()
-	want := "go, python, rust, ruby, zig, php, typescript, javascript, java, csharp, hcl, json, bash, yaml"
+	items := All()
+	wantNames := make([]string, 0, len(items))
+	for _, item := range items {
+		wantNames = append(wantNames, item.Name)
+	}
+	want := strings.Join(wantNames, ", ")
 	if got != want {
 		t.Fatalf("RenderSupportedLanguagesSummary() = %q, want %q", got, want)
 	}

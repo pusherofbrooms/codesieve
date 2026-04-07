@@ -2,6 +2,10 @@
 
 setup_file() {
   export PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  # shellcheck source=/dev/null
+  source "$PROJECT_ROOT/scripts/language-map.sh"
+  export EXPECTED_SUPPORTED_LANGUAGES="$(printf '%s, ' "${codesieve_language_names[@]}")"
+  export EXPECTED_SUPPORTED_LANGUAGES="${EXPECTED_SUPPORTED_LANGUAGES%, }"
   if [ -n "${CODESIEVE_BIN:-}" ]; then
     export TEST_BIN="$CODESIEVE_BIN"
   else
@@ -245,18 +249,17 @@ EOF
   run "$TEST_BIN" --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
-  [[ "$output" == *"Supported languages: go, python"* ]]
-  [[ "$output" == *"bash, yaml"* ]]
+  [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
 
   run "$TEST_BIN" -h
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
-  [[ "$output" == *"Supported languages: go, python"* ]]
+  [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
 
   run "$TEST_BIN" help
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
-  [[ "$output" == *"Supported languages: go, python"* ]]
+  [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
 }
 
 @test "subcommand help exits successfully" {
