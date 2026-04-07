@@ -245,14 +245,18 @@ EOF
   run "$TEST_BIN" --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
+  [[ "$output" == *"Supported languages: go, python"* ]]
+  [[ "$output" == *"bash, yaml"* ]]
 
   run "$TEST_BIN" -h
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
+  [[ "$output" == *"Supported languages: go, python"* ]]
 
   run "$TEST_BIN" help
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
+  [[ "$output" == *"Supported languages: go, python"* ]]
 }
 
 @test "subcommand help exits successfully" {

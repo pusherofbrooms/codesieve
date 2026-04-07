@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pusherofbrooms/codesieve/internal/app"
+	"github.com/pusherofbrooms/codesieve/internal/languages"
 )
 
 var version = "dev"
@@ -408,6 +409,8 @@ func printUsage() {
 	fmt.Println("  repo outline")
 	fmt.Println("  show symbol <id>")
 	fmt.Println("  show symbols <id...>")
+	fmt.Println("")
+	fmt.Printf("Supported languages: %s\n", languages.RenderSupportedLanguagesSummary())
 	fmt.Println("")
 	fmt.Println("Run 'codesieve <command> --help' for command-specific help.")
 }

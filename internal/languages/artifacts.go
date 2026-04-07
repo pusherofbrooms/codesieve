@@ -105,6 +105,15 @@ func RenderParserBuiltinNames() []string {
 	return names
 }
 
+func RenderSupportedLanguagesSummary() string {
+	items := All()
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		names = append(names, item.Name)
+	}
+	return strings.Join(names, ", ")
+}
+
 func blankDash(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "-"
