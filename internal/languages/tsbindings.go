@@ -67,6 +67,23 @@ func TreeSitterBindings() []TreeSitterBinding {
 			})
 			continue
 		}
+		if item.Name == "nix" {
+			out = append(out, TreeSitterBinding{
+				Package:    item.Name,
+				GrammarDir: item.GrammarDir,
+				Variants: []TreeSitterBindingVariant{
+					{
+						FileName:        "binding.go",
+						SourceSubdir:    "src",
+						FunctionName:    "Language",
+						CSymbol:         "tree_sitter_nix",
+						CPPIncludeDir:   "src",
+						OptionalScanner: false,
+					},
+				},
+			})
+			continue
+		}
 
 		out = append(out, TreeSitterBinding{
 			Package:    item.Name,

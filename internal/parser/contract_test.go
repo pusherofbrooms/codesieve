@@ -12,6 +12,7 @@ import (
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/java"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/javascript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/json"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/nix"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/php"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/python"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/rust"
@@ -30,6 +31,7 @@ var (
 	_ ParseFunc = csharp.Parse
 	_ ParseFunc = hcl.Parse
 	_ ParseFunc = json.Parse
+	_ ParseFunc = nix.Parse
 	_ ParseFunc = php.Parse
 	_ ParseFunc = bash.Parse
 	_ ParseFunc = yaml.Parse
@@ -53,6 +55,7 @@ func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
 		{name: "hcl tf.json", path: "tests/testdata/languages/hcl_cases/main.tf.json"},
 		{name: "hcl terragrunt", path: "tests/testdata/languages/hcl_cases/terragrunt.hcl"},
 		{name: "json", path: "tests/testdata/languages/json/basic.json"},
+		{name: "nix", path: "tests/testdata/languages/nix/basic.nix"},
 		{name: "php", path: "tests/testdata/languages/php/basic.php"},
 		{name: "bash", path: "tests/testdata/languages/bash/basic.sh"},
 		{name: "yaml", path: "tests/testdata/languages/yaml/basic.yaml"},

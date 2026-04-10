@@ -224,6 +224,20 @@ func TestLanguageFixturesFollowStandardContract(t *testing.T) {
 			queryQualified:   "Resources.AppBucket",
 			showContains:     "\"AppBucket\"",
 		},
+		{
+			name:             "nix",
+			fixtureDir:       "tests/testdata/languages/nix",
+			filePath:         "basic.nix",
+			expectedLanguage: "nix",
+			topName:          "file:basic.nix",
+			topKind:          "file",
+			childName:        "packages",
+			childKind:        "attrset",
+			query:            "default",
+			queryKind:        "binding",
+			queryQualified:   "packages.${system}.default",
+			showContains:     "packages.${system}.default = pkgs.hello;",
+		},
 	}
 
 	for _, tc := range cases {

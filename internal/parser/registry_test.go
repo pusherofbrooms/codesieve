@@ -45,6 +45,7 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		{path: "main.tf.json", want: "hcl"},
 		{path: "env.tfvars.json", want: "hcl"},
 		{path: "template.json", want: "json"},
+		{path: "flake.nix", want: "nix"},
 		{path: "script.sh", want: "bash"},
 		{path: "script.bash", want: "bash"},
 		{path: "template.yaml", want: "yaml"},

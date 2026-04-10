@@ -123,6 +123,16 @@ var catalog = []Metadata{
 		GrammarDir:  "third_party/tree-sitter-json",
 	},
 	{
+		Name:        "nix",
+		DisplayName: "Nix",
+		Parser:      "tree-sitter",
+		Version:     "1",
+		Extensions:  []string{".nix"},
+		GrammarRepo: "https://github.com/nix-community/tree-sitter-nix.git",
+		GrammarDir:  "third_party/tree-sitter-nix",
+		Notes:       "Grammar is maintained under nix-community rather than the official tree-sitter orgs",
+	},
+	{
 		Name:        "bash",
 		DisplayName: "Bash",
 		Parser:      "tree-sitter",

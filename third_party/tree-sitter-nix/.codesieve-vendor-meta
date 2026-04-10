@@ -1,0 +1,5 @@
+repository=https://github.com/nix-community/tree-sitter-nix.git
+requested_ref=master
+resolved_commit=eabf96807ea4ab6d6c7f09b671a88cd483542840
+vendored_at_utc=2026-04-10T11:49:14Z
+script=scripts/vendor-grammar

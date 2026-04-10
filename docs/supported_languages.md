@@ -19,6 +19,7 @@ Other docs should link here instead of duplicating language lists.
 | C# (`csharp`) | tree-sitter | `.cs`, `.csx` | - |
 | Terraform/OpenTofu (HCL) (`hcl`) | tree-sitter | `.tf`, `.tfvars`, `.hcl` | *.tf.json, *.tfvars.json |
 | JSON (`json`) | tree-sitter | `.json` | - |
+| Nix (`nix`) | tree-sitter | `.nix` | Grammar is maintained under nix-community rather than the official tree-sitter orgs |
 | Bash (`bash`) | tree-sitter | `.sh`, `.bash` | Also detected via bash shebang for extensionless scripts |
 | YAML (`yaml`) | tree-sitter | `.yaml`, `.yml` | - |
 
