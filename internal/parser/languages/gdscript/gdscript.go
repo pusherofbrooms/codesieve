@@ -34,7 +34,9 @@ func Parse(_ string, content []byte) ([]core.Symbol, error) {
 				if name == "" {
 					return
 				}
-				symbols = append(symbols, core.MakeSymbol(content, node, name, name, "class"))
+				sym := core.MakeSymbol(content, root, name, name, "class")
+				sym.Signature = core.SignatureFromNode(node, content)
+				symbols = append(symbols, sym)
 				return
 			case "class_definition":
 				name := nodeName(node, content)
