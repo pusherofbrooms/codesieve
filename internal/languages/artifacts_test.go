@@ -46,6 +46,15 @@ func TestRenderSupportedLanguagesSummary(t *testing.T) {
 	}
 }
 
+func TestRenderSupportedLanguagesHelpList(t *testing.T) {
+	got := RenderSupportedLanguagesHelpList()
+	for _, want := range []string{"  go           .go", "  gdscript     .gd"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("RenderSupportedLanguagesHelpList() missing %q in:\n%s", want, got)
+		}
+	}
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()

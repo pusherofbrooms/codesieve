@@ -411,6 +411,7 @@ func printUsage() {
 	fmt.Println("  show symbols <id...>")
 	fmt.Println("")
 	fmt.Printf("Supported languages: %s\n", languages.RenderSupportedLanguagesSummary())
+	fmt.Println(languages.RenderSupportedLanguagesHelpList())
 	fmt.Println("")
 	fmt.Println("Run 'codesieve <command> --help' for command-specific help.")
 }

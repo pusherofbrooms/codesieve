@@ -114,6 +114,14 @@ func RenderSupportedLanguagesSummary() string {
 	return strings.Join(names, ", ")
 }
 
+func RenderSupportedLanguagesHelpList() string {
+	var b strings.Builder
+	for _, item := range All() {
+		b.WriteString(fmt.Sprintf("  %-12s %s\n", item.Name, strings.Join(item.Extensions, ", ")))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
 func blankDash(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "-"

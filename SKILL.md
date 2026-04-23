@@ -13,7 +13,7 @@ codesieve is not suitable for document exploration.
 
 - Run from repo root.
 - If unsure about commands, run `codesieve --help`.
-- Use `codesieve --help` for the current supported-language list.
+- Top-level `codesieve --help` lists the current supported languages and file extensions.
 
 ## Core retrieval loop
 
