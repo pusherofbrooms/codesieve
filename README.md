@@ -125,7 +125,9 @@ codesieve show symbols <id-1> <id-2> --json
 
 ## Command and flag highlights
 
-Use `codesieve <command> --help` for full details. Commonly useful flags:
+Use `codesieve <command> --help` for full details. Run `codesieve languages` to list supported languages and recognized file extensions.
+
+Commonly useful flags:
 
 ### Indexing
 

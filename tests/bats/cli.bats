@@ -249,17 +249,35 @@ EOF
   run "$TEST_BIN" --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
+  [[ "$output" == *"  languages"* ]]
   [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
+  [[ "$output" == *"Run 'codesieve languages' to see recognized file extensions."* ]]
+  [[ "$output" != *"  go           .go"* ]]
 
   run "$TEST_BIN" -h
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
   [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
+  [[ "$output" != *"  go           .go"* ]]
 
   run "$TEST_BIN" help
   [ "$status" -eq 0 ]
   [[ "$output" == *"codesieve <command>"* ]]
   [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
+  [[ "$output" != *"  go           .go"* ]]
+}
+
+@test "languages command lists recognized file extensions" {
+  run "$TEST_BIN" languages
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Supported languages: $EXPECTED_SUPPORTED_LANGUAGES"* ]]
+  [[ "$output" == *"  go           .go"* ]]
+  [[ "$output" == *"  typescript   .ts, .tsx"* ]]
+  [[ "$output" == *"  gdscript     .gd"* ]]
+
+  run "$TEST_BIN" languages --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: codesieve languages"* ]]
 }
 
 @test "subcommand help exits successfully" {

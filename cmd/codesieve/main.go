@@ -49,6 +49,8 @@ func run() int {
 	case "version", "--version", "-v":
 		fmt.Println(version)
 		return 0
+	case "languages":
+		return handleLanguages(args[1:], start)
 	case "index":
 		return handleIndex(ctx, svc, args[1:], start)
 	case "search":
@@ -63,6 +65,22 @@ func run() int {
 		printUsage()
 		return 1
 	}
+}
+
+func handleLanguages(args []string, start time.Time) int {
+	for _, arg := range args {
+		switch {
+		case isHelpArg(arg):
+			printLanguagesUsage()
+			return 0
+		default:
+			return printError(start, false, app.ErrInvalidArgs("unknown flag: "+arg))
+		}
+	}
+
+	fmt.Printf("Supported languages: %s\n", languages.RenderSupportedLanguagesSummary())
+	fmt.Println(languages.RenderSupportedLanguagesHelpList())
+	return 0
 }
 
 func handleIndex(ctx context.Context, svc *app.Service, args []string, start time.Time) int {
@@ -403,6 +421,7 @@ func printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  help")
 	fmt.Println("  version")
+	fmt.Println("  languages")
 	fmt.Println("  index <path>")
 	fmt.Println("  search symbol <query>")
 	fmt.Println("  outline <file>")
@@ -411,9 +430,15 @@ func printUsage() {
 	fmt.Println("  show symbols <id...>")
 	fmt.Println("")
 	fmt.Printf("Supported languages: %s\n", languages.RenderSupportedLanguagesSummary())
-	fmt.Println(languages.RenderSupportedLanguagesHelpList())
+	fmt.Println("Run 'codesieve languages' to see recognized file extensions.")
 	fmt.Println("")
 	fmt.Println("Run 'codesieve <command> --help' for command-specific help.")
+}
+
+func printLanguagesUsage() {
+	fmt.Println("Usage: codesieve languages")
+	fmt.Println("")
+	fmt.Println("Print supported languages and recognized file extensions.")
 }
 
 func printIndexUsage() {
