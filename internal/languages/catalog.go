@@ -151,6 +151,16 @@ var catalog = []Metadata{
 		GrammarRepo: "https://github.com/tree-sitter/tree-sitter-yaml.git",
 		GrammarDir:  "third_party/tree-sitter-yaml",
 	},
+	{
+		Name:        "gdscript",
+		DisplayName: "GDScript",
+		Parser:      "tree-sitter",
+		Version:     "1",
+		Extensions:  []string{".gd"},
+		GrammarRepo: "https://github.com/PrestonKnopp/tree-sitter-gdscript.git",
+		GrammarDir:  "third_party/tree-sitter-gdscript",
+		Notes:       "Community grammar; not maintained under the official tree-sitter orgs",
+	},
 }
 
 func All() []Metadata {

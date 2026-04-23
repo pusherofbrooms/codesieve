@@ -1,0 +1,5 @@
+repository=https://github.com/PrestonKnopp/tree-sitter-gdscript.git
+requested_ref=v6.1.0
+resolved_commit=d2a0ee914d297b873a40dd4596bd1f7157ebc52b
+vendored_at_utc=2026-04-23T22:22:15Z
+script=scripts/vendor-grammar

@@ -22,6 +22,7 @@ Other docs should link here instead of duplicating language lists.
 | Nix (`nix`) | tree-sitter | `.nix` | Grammar is maintained under nix-community rather than the official tree-sitter orgs |
 | Bash (`bash`) | tree-sitter | `.sh`, `.bash` | Also detected via bash shebang for extensionless scripts |
 | YAML (`yaml`) | tree-sitter | `.yaml`, `.yml` | - |
+| GDScript (`gdscript`) | tree-sitter | `.gd` | Community grammar; not maintained under the official tree-sitter orgs |
 
 Tree-sitter grammar sources are vendored for reproducible Nix builds.
 See `docs/PARSERS.md` for layout and update workflow.

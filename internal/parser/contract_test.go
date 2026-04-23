@@ -7,6 +7,7 @@ import (
 
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/csharp"
+	"github.com/pusherofbrooms/codesieve/internal/parser/languages/gdscript"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/hcl"
 	"github.com/pusherofbrooms/codesieve/internal/parser/languages/java"
@@ -29,6 +30,7 @@ var (
 	_ ParseFunc = javascript.Parse
 	_ ParseFunc = java.Parse
 	_ ParseFunc = csharp.Parse
+	_ ParseFunc = gdscript.Parse
 	_ ParseFunc = hcl.Parse
 	_ ParseFunc = json.Parse
 	_ ParseFunc = nix.Parse
@@ -60,6 +62,7 @@ func TestParseContractPopulatesRequiredSymbolFields(t *testing.T) {
 		{name: "bash", path: "tests/testdata/languages/bash/basic.sh"},
 		{name: "yaml", path: "tests/testdata/languages/yaml/basic.yaml"},
 		{name: "zig", path: "tests/testdata/languages/zig/basic.zig"},
+		{name: "gdscript", path: "tests/testdata/languages/gdscript/basic.gd"},
 	}
 
 	for _, tc := range tests {

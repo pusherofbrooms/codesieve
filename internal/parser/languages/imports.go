@@ -3,6 +3,7 @@ package languages
 import (
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/bash"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/csharp"
+	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/gdscript"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/golang"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/hcl"
 	_ "github.com/pusherofbrooms/codesieve/internal/parser/languages/java"
