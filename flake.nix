@@ -10,7 +10,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        version = "0.1.0-dev";
+        version = "0.2.0";
         codesieve = pkgs.buildGoModule {
           pname = "codesieve";
           inherit version;
