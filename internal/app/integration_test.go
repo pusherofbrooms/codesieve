@@ -137,6 +137,30 @@ func TestIndexStoresFilesAndSymbols(t *testing.T) {
 	}
 }
 
+func TestIndexDoesNotStoreFileContent(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := t.TempDir()
+	body := "package main\nfunc StoredContentProbe() {}\n"
+	if err := os.WriteFile(filepath.Join(repoPath, "probe.go"), []byte(body), 0o644); err != nil {
+		t.Fatalf("write probe.go: %v", err)
+	}
+
+	if _, err := svc.Index(ctx, repoPath, IndexOptions{}); err != nil {
+		t.Fatalf("Index error: %v", err)
+	}
+
+	repoID := repoIDForPath(t, svc.store.db, repoPath)
+	var stored string
+	if err := svc.store.db.QueryRow(`SELECT content FROM files WHERE repo_id = ? AND path = 'probe.go'`, repoID).Scan(&stored); err != nil {
+		t.Fatalf("read stored content: %v", err)
+	}
+	if stored != "" {
+		t.Fatalf("expected indexed file content to be empty, got %q", stored)
+	}
+}
+
 func TestIncrementalReindexSkipsUnchanged(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)

@@ -188,7 +188,6 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 			SizeBytes:     info.Size(),
 			ModTimeNS:     info.ModTime().UnixNano(),
 			ParseStatus:   parseStatus,
-			Content:       string(content),
 			Symbols:       parsed,
 		})
 		if len(pending) >= 128 {

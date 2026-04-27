@@ -44,7 +44,7 @@ func OpenStore(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
-const currentSchemaVersion = 3
+const currentSchemaVersion = 4
 
 type schemaMigration struct {
 	Version int
@@ -72,6 +72,14 @@ var schemaMigrations = []schemaMigration{
 		Name:    "add_files_parser_version",
 		Apply: func(tx *sql.Tx) error {
 			return ensureColumnTx(tx, "files", "parser_version", `ALTER TABLE files ADD COLUMN parser_version TEXT NOT NULL DEFAULT ''`)
+		},
+	},
+	{
+		Version: 4,
+		Name:    "clear_files_content",
+		Apply: func(tx *sql.Tx) error {
+			_, err := tx.Exec(`UPDATE files SET content = ''`)
+			return err
 		},
 	},
 }
@@ -262,8 +270,8 @@ func (s *Store) replaceFilesSymbolsBatch(ctx context.Context, repoID int64, upda
 	}
 	defer tx.Rollback()
 
-	upsertFileStmt, err := tx.PrepareContext(ctx, `INSERT INTO files(repo_id, path, language, parser_version, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
-		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, parser_version=excluded.parser_version, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=excluded.content`)
+	upsertFileStmt, err := tx.PrepareContext(ctx, `INSERT INTO files(repo_id, path, language, parser_version, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content) VALUES(?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, '')
+		ON CONFLICT(repo_id, path) DO UPDATE SET language=excluded.language, parser_version=excluded.parser_version, hash=excluded.hash, size_bytes=excluded.size_bytes, mod_time_ns=excluded.mod_time_ns, indexed_at=datetime('now'), parse_status=excluded.parse_status, content=''`)
 	if err != nil {
 		return err
 	}
@@ -289,7 +297,7 @@ func (s *Store) replaceFilesSymbolsBatch(ctx context.Context, repoID int64, upda
 	defer insertSymbolStmt.Close()
 
 	for _, update := range updates {
-		if _, err := upsertFileStmt.ExecContext(ctx, repoID, update.RelPath, update.Language, update.ParserVersion, update.Hash, update.SizeBytes, update.ModTimeNS, update.ParseStatus, update.Content); err != nil {
+		if _, err := upsertFileStmt.ExecContext(ctx, repoID, update.RelPath, update.Language, update.ParserVersion, update.Hash, update.SizeBytes, update.ModTimeNS, update.ParseStatus); err != nil {
 			return err
 		}
 

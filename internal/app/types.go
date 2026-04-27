@@ -50,7 +50,6 @@ type FileIndexUpdate struct {
 	SizeBytes     int64
 	ModTimeNS     int64
 	ParseStatus   string
-	Content       string
 	Symbols       []Symbol
 }
 

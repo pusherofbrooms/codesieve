@@ -102,6 +102,73 @@ CREATE TABLE files (
 	}
 }
 
+func TestOpenStoreClearsLegacyStoredFileContent(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "content.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	schema := `
+CREATE TABLE repos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  path TEXT NOT NULL UNIQUE,
+  indexed_at TEXT NOT NULL
+);
+CREATE TABLE files (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_id INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  language TEXT,
+  parser_version TEXT NOT NULL DEFAULT '',
+  hash TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  mod_time_ns INTEGER NOT NULL DEFAULT 0,
+  indexed_at TEXT NOT NULL,
+  parse_status TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  UNIQUE(repo_id, path)
+);
+CREATE TABLE schema_migrations (
+  version INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+PRAGMA user_version = 3;
+INSERT INTO repos(id, path, indexed_at) VALUES(1, '/repo', datetime('now'));
+INSERT INTO files(repo_id, path, language, parser_version, hash, size_bytes, mod_time_ns, indexed_at, parse_status, content)
+VALUES(1, 'main.go', 'go', '1', 'hash', 21, 1, datetime('now'), 'ok', 'package main');
+`
+	if _, err := db.Exec(schema); err != nil {
+		db.Close()
+		t.Fatalf("seed schema: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close db: %v", err)
+	}
+
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("OpenStore content db error: %v", err)
+	}
+	defer store.Close()
+
+	var content string
+	if err := store.db.QueryRow(`SELECT content FROM files WHERE path = 'main.go'`).Scan(&content); err != nil {
+		t.Fatalf("read content: %v", err)
+	}
+	if content != "" {
+		t.Fatalf("expected migration to clear stored file content, got %q", content)
+	}
+
+	var version int
+	if err := store.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		t.Fatalf("read user_version: %v", err)
+	}
+	if version != currentSchemaVersion {
+		t.Fatalf("expected user_version=%d after migration, got %d", currentSchemaVersion, version)
+	}
+}
+
 func TestOpenStoreRejectsNewerSchemaVersion(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "too-new.db")
 	db, err := sql.Open("sqlite", dbPath)
