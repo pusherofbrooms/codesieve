@@ -1,6 +1,6 @@
 ---
 name: codesieve
-description: codesieve retrieves precise code context using indexing, symbol search, outlines, and targeted file slices. Use this skill first for code questions, especially when full-file reads would add unnecessary tokens.
+description: codesieve retrieves precise code context using indexing, symbol search, outlines, and exact symbol bodies. Use this skill first for code questions, especially when full-file reads would add unnecessary tokens.
 ---
 
 # codesieve skill

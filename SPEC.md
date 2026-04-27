@@ -8,8 +8,9 @@ Its job is to reduce token usage while preserving accuracy by letting agents ret
 
 - compact structural summaries of code
 - exact symbol bodies on demand
-- small file slices when needed
-- text matches as a fallback
+- repository-level structural summaries
+
+For plain text matches and arbitrary file slices, agents should use native harness tools such as `rg` and `read`.
 
 The tool is intentionally narrow.
 
@@ -24,9 +25,10 @@ Coding agents waste tokens when they read whole files too early.
 `codesieve` should help agents follow a smaller retrieval loop:
 
 1. index the repository once
-2. search for relevant symbols or text
+2. search for relevant symbols
 3. inspect a compact outline
-4. fetch only the exact symbol or file slice needed
+4. fetch only the exact symbol bodies needed
+5. fall back to native `rg`/`read` only when structural retrieval is insufficient
 
 If this loop works well, agents can understand code with less context and fewer full-file reads.
 
@@ -82,10 +84,10 @@ Recommended scope for a `pi` extension:
 
 - `codesieve_index`
 - `codesieve_search_symbol`
-- `codesieve_search_text`
 - `codesieve_outline`
 - `codesieve_show_symbol`
-- `codesieve_show_file`
+
+Text search and arbitrary file reads should remain delegated to native agent tools.
 
 The extension should be treated as a thin convenience layer for `pi`, not as a second product surface.
 
@@ -100,8 +102,7 @@ The extension should be treated as a thin convenience layer for `pi`, not as a s
 - find likely symbols quickly
 - inspect file structure without reading the whole file
 - retrieve exact symbol source by ID (single and batch)
-- retrieve a precise file slice by line range
-- fall back to text search when symbol search is insufficient
+- fall back to native text search and file reads when symbol search is insufficient
 - do all of the above through a small, consistent CLI
 
 ---
@@ -445,7 +446,6 @@ Responsibilities:
 - persist repository metadata
 - persist file metadata
 - persist symbols and ranges
-- support text search
 - support incremental updates
 
 #### Query
@@ -651,8 +651,8 @@ The guide should teach this retrieval discipline:
 1. search symbols first
 2. inspect outlines before reading large files
 3. fetch exact symbol bodies instead of whole files
-4. use text search as fallback
-5. read file slices only when symbol-based retrieval is insufficient
+4. use native text search as fallback
+5. use native file reads or line slices only when symbol-based retrieval is insufficient
 
 This guide is part of the product, not an afterthought.
 

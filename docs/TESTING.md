@@ -81,7 +81,7 @@ Each fixture repo should include:
 - top-level and nested symbols
 - imports
 - duplicate or similar names
-- constants and strings for text search
+- constants and strings for native text-search fallback scenarios
 - ignored files
 - binary or oversized file cases
 - known expected search and outline results
@@ -97,7 +97,7 @@ Assert that:
 - outlines stay concise and preserve hierarchy (top-level plus nested symbols)
 - search results do not include unnecessary payload
 - symbol retrieval returns exact source
-- file slices respect requested ranges
+- native file-slice fallback guidance remains accurate where documented
 - JSON output remains compact and stable
 
 ## Delivery order
