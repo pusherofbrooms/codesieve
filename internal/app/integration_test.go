@@ -161,6 +161,64 @@ func TestIndexDoesNotStoreFileContent(t *testing.T) {
 	}
 }
 
+func TestIndexMaxFilesDoesNotDeleteUnvisitedExistingFiles(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t)
+
+	repoPath := t.TempDir()
+	files := map[string]string{
+		"a.go": "package main\nfunc Alpha() {}\n",
+		"b.go": "package main\nfunc Beta() {}\n",
+		"c.go": "package main\nfunc Gamma() {}\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(repoPath, name), []byte(body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	first, err := svc.Index(ctx, repoPath, IndexOptions{})
+	if err != nil {
+		t.Fatalf("first Index error: %v", err)
+	}
+	if first.FilesIndexed != 3 || first.FilesDeleted != 0 {
+		t.Fatalf("unexpected first index result: %+v", first)
+	}
+
+	repoID := repoIDForPath(t, svc.store.db, repoPath)
+	var before int
+	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM files WHERE repo_id = ?`, repoID).Scan(&before); err != nil {
+		t.Fatalf("count files before capped index: %v", err)
+	}
+	if before != 3 {
+		t.Fatalf("expected 3 files before capped index, got %d", before)
+	}
+
+	second, err := svc.Index(ctx, repoPath, IndexOptions{MaxFiles: 1})
+	if err != nil {
+		t.Fatalf("second Index error: %v", err)
+	}
+	if second.FilesDeleted != 0 {
+		t.Fatalf("capped index should not delete unvisited files: %+v", second)
+	}
+
+	var after int
+	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM files WHERE repo_id = ?`, repoID).Scan(&after); err != nil {
+		t.Fatalf("count files after capped index: %v", err)
+	}
+	if after != 3 {
+		t.Fatalf("expected capped index to preserve 3 files, got %d", after)
+	}
+
+	var gammaSymbols int
+	if err := svc.store.db.QueryRow(`SELECT COUNT(*) FROM symbols WHERE repo_id = ? AND name = 'Gamma'`, repoID).Scan(&gammaSymbols); err != nil {
+		t.Fatalf("count Gamma symbols: %v", err)
+	}
+	if gammaSymbols != 1 {
+		t.Fatalf("expected Gamma symbol to remain after capped index, got %d", gammaSymbols)
+	}
+}
+
 func TestIncrementalReindexSkipsUnchanged(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newTestService(t)

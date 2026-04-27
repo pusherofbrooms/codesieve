@@ -207,7 +207,7 @@ func (s *Service) Index(ctx context.Context, path string, opt IndexOptions) (Ind
 	if ferr := flush(); ferr != nil {
 		return IndexResult{}, ferr
 	}
-	if err == nil || err == io.EOF {
+	if err == nil {
 		deleted, derr := s.store.deleteMissingFiles(ctx, repoID, seen)
 		if derr != nil {
 			return IndexResult{}, derr
